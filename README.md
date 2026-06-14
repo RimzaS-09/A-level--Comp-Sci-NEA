@@ -36,7 +36,7 @@ Once you download it, you can simply move it into `/data/map/` and the program s
 ### Prerequirements
 Before you can continue, ensure you have these prerequirements installed:
 * [Python](https://www.python.org/downloads/release/python-31314/) version 3.13
-* [PyQT6](https://pypi.org/project/PyQt6/) (Via PIP)
+* [PySide6](https://pypi.org/project/PySide6/) (Via PIP)
 * [Google protobuf](https://pypi.org/project/protobuf/#description) (Via PIP)
 * (Optional) If you want to benchmark some of the solutions as well, you'll need the [PyPerf](https://github.com/psf/pyperf) library as well
 
