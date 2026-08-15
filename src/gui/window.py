@@ -25,11 +25,3 @@ class MainWindow (pyqt.QMainWindow):
         
         new_route_button = top_menu.addMenu("New route")
         
-
-app = pyqt.QApplication()
-
-window = MainWindow()
-window.show()
-
-app.exec()
-        

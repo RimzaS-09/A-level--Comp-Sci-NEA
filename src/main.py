@@ -2,7 +2,7 @@ import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
-
+from gui import window
 
 
 
@@ -11,19 +11,12 @@ if __name__ == "__main__":
     args = sys.argv
     
     # i.e., no arguements were passed
-    if n == 1:
-        app = QtWidgets.QApplication(sys.argv)
-        
-        window = QtWidgets.QPushButton("Hello world!")
-        window.show()
-        
-        scene = QtWidgets.QGraphicsScene()
-        scene.addText("whatsup")
-        view = QtWidgets.QGraphicsView(scene)
-        view.show()
-        
-        app.exec()
+
+    app = QtWidgets.QApplication(sys.argv)
     
-    for arg in range(1, n):
-        print(arg)
+    window = window.MainWindow()
+    window.create_menu()
+    window.show()
+    
+    app.exec()
     
