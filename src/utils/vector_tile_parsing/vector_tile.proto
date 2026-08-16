@@ -1,6 +1,7 @@
-syntax = "proto2";  // needed by newer protoc compilers
-// The rest of the file is a verbatim copy of MVT 2.1 proto file:
+// ALL code in this file after the next line onwards is provided by MapBox in their vector tile repository:
 // https://github.com/mapbox/vector-tile-spec/blob/master/2.1/vector_tile.proto
+
+syntax = "proto2";
 
 package vector_tile;
 
