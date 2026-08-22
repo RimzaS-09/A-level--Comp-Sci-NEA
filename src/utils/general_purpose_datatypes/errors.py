@@ -18,5 +18,15 @@ class Error (Exception):
         return self.msg
     
 
-class QueueError():
+class QueueError(Error):
+    pass
+
+class QueueFullError(QueueError):
+    pass
+
+class QueueEmptyError(QueueError):
+    pass
+
+
+class FileNotFoundError(Error):
     pass
