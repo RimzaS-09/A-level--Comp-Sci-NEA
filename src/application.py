@@ -36,7 +36,7 @@ class Application:
 
 
         # Connect application components
-        self.window.map_widget.viewport_changed.connect(
+        self.window.map_widget.viewport.connect(
             self.tile_manager.update_viewport
         )
 

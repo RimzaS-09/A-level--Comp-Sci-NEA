@@ -4,6 +4,9 @@ from PySide6.QtWidgets import QApplication
 from application import Application
 
 
+
+
+"""
 def main():
     qt_app = QApplication(sys.argv)
 
@@ -15,3 +18,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+"""
