@@ -1,4 +1,7 @@
 import sqlite3
+import json
+from ast import literal_eval as parser
+
 from .connect import SQLConnection
 
 class SQLDatabase:
@@ -15,16 +18,42 @@ class LocationsDatabase(SQLDatabase):
  
         
 class MBTileDatabase(SQLDatabase):
+    """
+    Container class for MBTile databases (A type of SQL database).
+    
+    Differs from the parent class slightly, cause it doesn't allow file editing.
+    plus, extra functions for MBtile databases specifically
+    """
+    
     def __init__(self, file_path):
         self.connection = SQLConnection(file_path, read_only=True)
 
     def get_metadata(self):
         return self.connection.fetch_all("SELECT * FROM metadata")
     
+    def get_metadata_item(self, item):
+        # For a specific meetadata item
+        
+        return self.connection.fetch_one("SELECT value FROM metadata WHERE name=?", (item, ))[0]
+    
     def get_center(self):
-        """Note to self: This returns a string, not a tuple. Parse later"""
-        return self.connection.fetch_one("SELECT value FROM metadata WHERE name='center'")
+        center = parser(self.connection.fetch_one("SELECT value FROM metadata WHERE name='center'")[0])
+        return center
 
+    def get_layers_as_json(self):
+        layers = json.loads(self.connection.fetch_one("SELECT value FROM metadata WHERE name='json'")[0])
+        return layers
+    
+    def get_layers_as_arr(self):
+        layer_json = json.loads( self.connection.fetch_one("SELECT value FROM metadata WHERE name='json'")[0] )
+        
+        layers = []
+        
+        for item in layer_json["vector_layers"]:
+            layers.append(item["id"])
+        
+        return layers
+        
     def get_tiles_of_zoomlevel(self, zoomlevel):
         return self.connection.fetch_all(f"SELECT * FROM tiles WHERE zoom_level=?", (zoomlevel,))
     

@@ -1,7 +1,11 @@
 from utils.vector_tile_parsing import vector_tile_pb2
 from enum import Enum
 
+from PySide6.QtGui import QImage
 
+# A typedef to shorten a tuple containing tile metadata
+# (zoom, column, row)
+TileKey = tuple[int, int, int]
 
 
 class Geometry:
@@ -30,6 +34,23 @@ class Polygon(Geometry):
 
 
 
+class RenderedTile:
+    """
+    Model class For 1 rendered tile
+    """
+    
+    def __init__(self, tile_key: TileKey, raster_image: QImage) -> None:
+        self._tile_key = tile_key
+        self._image = raster_image
+    
+    def get_tile_key(self) -> TileKey:
+        return self._tile_key
+    
+    def get_zoom(self) -> int:
+        return self._tile_key[0]
+    
+    def get_coords(self) -> tuple[int, int]:
+        return self._tile_key[1:3]
 
 
 

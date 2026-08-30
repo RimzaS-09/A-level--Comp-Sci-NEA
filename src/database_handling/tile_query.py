@@ -60,7 +60,7 @@ def decode_geometry(raw_geometry, geom_type):
             if id == 1:
                 parameters = count * 2
                 
-                if (geom_type == vector_tile_pb2.Tile.GeomType.LINESTRING) and coordinates:
+                if (geom_type == vector_tile_pb2.Tile.GeomType.LINESTRING) and coordinates: # type: ignore
                     return_geoms.append(LineString(coordinates))
                     coordinates = []
                 
@@ -104,14 +104,14 @@ def decode_geometry(raw_geometry, geom_type):
     
     
     match geom_type:
-        case vector_tile_pb2.Tile.GeomType.POINT:
+        case vector_tile_pb2.Tile.GeomType.POINT: # type: ignore
             for coord in coordinates:
                 return_geoms.append(Point(coord))
         
-        case vector_tile_pb2.Tile.GeomType.LINESTRING:
+        case vector_tile_pb2.Tile.GeomType.LINESTRING: # type: ignore
             return_geoms.append(LineString(coordinates))
         
-        case vector_tile_pb2.Tile.GeomType.POLYGON:
+        case vector_tile_pb2.Tile.GeomType.POLYGON: # type: ignore
             return_geoms.append(Polygon(temp_lines[0], temp_lines[1:]))
     
     return return_geoms
@@ -180,7 +180,7 @@ class DecodedTile():
         self.x = self.tile_column
         self.y = (2 ** self.zoom_level - 1) - self.tile_row
         
-        tile_data = vector_tile_pb2.Tile()
+        tile_data = vector_tile_pb2.Tile() # type: ignore
         tile_data.ParseFromString(gzip.decompress(raw_tile))
         
         for index, layer in enumerate(tile_data.layers):

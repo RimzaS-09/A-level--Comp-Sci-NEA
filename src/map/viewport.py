@@ -1,123 +1,142 @@
-from dataclasses import dataclass
+import math
 
-
-def lon_to_world_x(lon: float, zoom: int) -> float:
-    """Convert longitude to global MVT/Web-Mercator pixel coordinates."""
-    return (lon + 180.0) / 360.0 * (2 ** zoom) * EXTENT
-
-
-def lat_to_world_y(lat: float, zoom: int) -> float:
-    """Convert latitude to global MVT/Web-Mercator pixel coordinates."""
-    lat = max(-85.05112878, min(85.05112878, lat))
-
-    lat_rad = math.radians(lat)
-
-    mercator_y = (
-        1.0 - math.asinh(math.tan(lat_rad)) / math.pi
-    ) / 2.0
-
-    return mercator_y * (2 ** zoom) * EXTENT
-
-
-def lon_lat_to_world(lon: float, lat: float, zoom: int) -> tuple[float, float]:
-    """Convert longitude/latitude to global world coordinates."""
-    return (
-        lon_to_world_x(lon, zoom),
-        lat_to_world_y(lat, zoom),
-    )
-
-
-
-@dataclass
 class Viewport:
-    # Centre of the viewport in world-pixel coordinates
-    centre_x: float
-    centre_y: float
-
-    # Visual zoom level
-    zoom: float = 1.0
-
-    # Size of the widget in screen pixels
-    width: int = 800
-    height: int = 600
-
-    TILE_SIZE: int = 256
-
-    def set_size(self, width: int, height: int):
-        self.width = width
-        self.height = height
-
-    def pan(self, dx: float, dy: float):
-        """
-        Move the viewport by screen/world pixels.
-        """
-        self.centre_x -= dx
-        self.centre_y -= dy
-
-    def zoom_at(
-        self,
-        mouse_x: float,
-        mouse_y: float,
-        zoom_factor: float
-    ):
-        """
-        Zoom while keeping the point underneath the mouse cursor
-        in approximately the same screen position.
-        """
-
-        old_zoom = self.zoom
-        new_zoom = old_zoom * zoom_factor
-
-        # Position of the cursor relative to the viewport centre
-        offset_x = mouse_x - self.width / 2
-        offset_y = mouse_y - self.height / 2
-
-        # Convert the cursor's screen offset into world offset
-        old_world_x = offset_x / old_zoom
-        old_world_y = offset_y / old_zoom
-
-        new_world_x = offset_x / new_zoom
-        new_world_y = offset_y / new_zoom
-
-        # Adjust centre so the same world position remains beneath
-        # the cursor.
-        self.centre_x += old_world_x - new_world_x
-        self.centre_y += old_world_y - new_world_y
-
-        self.zoom = new_zoom
-
-    def visible_bounds(self):
-        """
-        Return the world-pixel coordinates of the viewport edges.
-        """
-
-        half_width = self.width / (2 * self.zoom)
-        half_height = self.height / (2 * self.zoom)
-
-        left = self.centre_x - half_width
-        right = self.centre_x + half_width
-
-        top = self.centre_y - half_height
-        bottom = self.centre_y + half_height
-
-        return left, top, right, bottom
-
-    def visible_tile_range(self):
-        """
-        Determine which tile indices intersect the current viewport.
-        """
-
-        left, top, right, bottom = self.visible_bounds()
-
-        tile_left = int(left // self.TILE_SIZE)
-        tile_right = int(right // self.TILE_SIZE)
-
-        tile_top = int(top // self.TILE_SIZE)
-        tile_bottom = int(bottom // self.TILE_SIZE)
-
+    def __init__(self,
+                centre: tuple[float, float],
+                zoom_level = 6.0,
+                dimensions: tuple[int, int] = (800, 600),       
+                ):
+        self.centre = centre
+        self.zoom_level = zoom_level
+        self.dimensions = dimensions
+        
+        self.min_zoom = 0
+        self.max_zoom = 20
+        
+        self.TILE_SIZE = 256
+        
+    
+    def scale(self):
+        return 2 ** self.zoom_level
+    
+    def set_size(self, dimensions: tuple[int, int]):
+        self.dimensions = dimensions
+        
+    def set_zoom_limits(self, minimum, maximum):
+        self.min_zoom = minimum
+        self.max_zoom = maximum
+    
+    def clamp(self):
+        world_size = self.TILE_SIZE
+        
+        if self.centre[0] > world_size:
+            clamped_x = world_size
+        elif self.centre[0] < 0.0:
+            clamped_x = 0.0
+        else:
+            clamped_x = self.centre[0]
+            
+        
+        if self.centre[1] > world_size:
+            clamped_y = world_size
+        elif self.centre[1] < 0.0:
+            clamped_y = 0.0
+        else:
+            clamped_y = self.centre[1]
+            
+        self.centre = (clamped_x, clamped_y)
+        
+        
+        
+    def check_zoom_level(self, new_zoom):
+        """returns a bool, to ensure zoom is legal or not."""
+        
+        if (new_zoom < self.min_zoom) or (new_zoom > self.max_zoom):
+            return False
+        
+        return True
+    
+    def zoom_to_point(self, mouse_x, mouse_y, delta):
+        old_zoom = self.zoom_level
+        new_zoom = old_zoom + delta
+        
+        if not self.check_zoom_level(new_zoom):
+            return
+        
+        old_scale = 2 ** old_zoom
+        new_scale = 2 ** new_zoom
+        
+        screen_centre = ( self.dimensions[0] / 2, self.dimensions[1] / 2 )
+        
+        offset_x = mouse_x - screen_centre[0]
+        offset_y = mouse_y - screen_centre[1]
+        
+        world_x = self.centre[0] + (offset_x / old_scale)
+        world_y = self.centre[1] + (offset_y / old_scale)
+        
+        self.centre = (world_x - (offset_x / new_scale) , world_y - (offset_y / new_scale))
+        
+        self.zoom_level = new_zoom
+    
+    def get_visible_world(self):
+        """Returns the visible section of the map in world coords, as the midpoints of each side of a rectangle"""
+        width_offset = self.dimensions[0] / 2 / self.scale()
+        height_offset = self.dimensions[1] / 2 / self.scale()
+        
         return (
-            tile_left,
-            tile_right,
-            tile_top,
-            tile_bottom
+            self.centre[0] - width_offset,
+            self.centre[1] - height_offset,
+            self.centre[0] + width_offset,
+            self.centre[1] + height_offset
         )
+        
+    def get_tiles_visible(self, padding = 0):
+        """
+        Gets the tile rows and columns that would be seen by the user, so they can be loaded.
+        
+        The parameter `padding` controls what extra buffer of tiles should be visible. In case I want to
+        make sure extra tiles outside the screen are loaded.
+        """
+        
+        bounds = self.get_visible_world()
+        
+        left = bounds[0]
+        top = bounds[1]
+        right = bounds[2]
+        bottom = bounds[3]
+        
+        num_tiles_across = 2 ** self.zoom_level
+        
+        # World coordinates go from 0-256 at zoom 0
+        tile_world_size = self.TILE_SIZE / num_tiles_across
+
+        min_x = math.floor(left / tile_world_size) - padding
+        max_x = math.floor(right / tile_world_size) + padding
+        min_y = math.floor(top / tile_world_size) - padding
+        max_y = math.floor(bottom / tile_world_size) + padding
+        
+        if min_x < 0:
+            min_x = 0
+        elif min_x > (num_tiles_across - 1):
+            min_x = num_tiles_across - 1
+        
+        if max_x < 0:
+            max_x = 0
+        elif max_x > (num_tiles_across - 1):
+            max_x = num_tiles_across - 1
+
+        if min_y < 0:
+            min_y = 0
+        elif min_y > (num_tiles_across - 1):
+            min_y = num_tiles_across - 1
+
+        if max_y < 0:
+            max_y = 0
+        elif max_y > (num_tiles_across - 1):
+            max_y = num_tiles_across - 1
+        
+        return (min_x, max_x, min_y, max_y)
+        
+        
+        
+        

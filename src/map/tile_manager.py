@@ -11,10 +11,8 @@ import threading
 
 from database_handling.sql_queries import MBTileDatabase
 
+from models import TileKey
 
-# A typedef to shorten a tuple containing tile metadata
-# (zoom, column, row)
-TileKey = tuple[int, int, int]
 
 
 class TileSignal(QObject):
@@ -36,11 +34,7 @@ class TileWorker(QRunnable):
         self.tile_coords = tile_coords
     
     def run(self) -> None:
-        self.database.new_connection(threading.get_ident())
-        self.database.switch_thread_to(threading.get_ident())
-        
-        data = self.database.get_tile_data(*self.tile_coords)
-        run_function_on_data(data)  # Just as an example
+        pass
 
 
 class TileManager:
