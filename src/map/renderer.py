@@ -36,7 +36,8 @@ from PySide6.QtGui import (
 from utils.vector_tile_parsing import vector_tile_pb2
 from utils.errors.errors import Error
 from map.layers import Layers, LayerStyle
-from models import TileKey
+from models import TileKey, RenderedTile
+from map.viewport import Viewport
 
 
 
@@ -295,7 +296,7 @@ class TileRenderer:
                 raise Error
 
 
-    def render_tile(self, gzipped_raw_tile) -> QImage:
+    def render_tile(self, tile_key: TileKey, gzipped_raw_tile) -> RenderedTile:
         """Renders the requested tile & tileKey"""
         styles = Layers().get_layer_styles()
 
@@ -336,7 +337,7 @@ class TileRenderer:
         
         painter.end()
         
-        return image
+        return RenderedTile(tile_key, image)
 
 
 
@@ -344,5 +345,5 @@ class TileRenderer:
 
 
 class MapRenderer:
-    def render_map(self, tiles, viewport, painter):
-        pass
+    def render_map(self, tiles: list[RenderedTile], viewport: Viewport, painter: QPainter):
+        print(viewport.get_visible_world())

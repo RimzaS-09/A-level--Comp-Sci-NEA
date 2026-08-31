@@ -19,8 +19,31 @@ class MapWidget(QWidget):
         super().__init__()
 
         self.tiles = []
-        self.viewport = Viewport(0, 0)
+        self.viewport = Viewport((0,0), 0)
         self.renderer = MapRenderer()
+        
+        self.last_position = None
+    
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:  
+        painter = QPainter(self)
+        self.renderer.render_map(self.tiles, self.viewport, painter)
+        return super().paintEvent(event)
+    
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if not self.last_position:
+            self.last_position = event.position()
+            return
+        
+        new_position = event.position()
+        
+        dx = new_position.x() - self.last_position.x()
+        dy = new_position.y() - self.last_position.y()
+        self.viewport.pan(dx, dy)
+        
+        self.last_position = new_position
+        
+        self.update()
+        return super().mouseMoveEvent(event)
 
     @Slot(list)
     def set_tiles(self, tiles):

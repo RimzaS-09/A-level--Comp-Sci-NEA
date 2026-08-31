@@ -24,6 +24,8 @@ class MainWindow (pyqt.QMainWindow):
         self.setCentralWidget(self.map_widget)
         
         self.create_menu()
+        
+        self.show()
     
     def create_menu(self):
         top_menu = self.menuBar()

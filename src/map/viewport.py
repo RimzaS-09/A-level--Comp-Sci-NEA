@@ -14,9 +14,16 @@ class Viewport:
         self.max_zoom = 20
         
         self.TILE_SIZE = 256
-        
     
-    def scale(self):
+    def pan(self, dx, dy):
+        scale = self.get_scale()
+        new_x = self.centre[0] - (dx / scale)
+        new_y = self.centre[0] - (dy / scale)
+        
+        self.centre = (new_x, new_y)
+        self.clamp()
+    
+    def get_scale(self):
         return 2 ** self.zoom_level
     
     def set_size(self, dimensions: tuple[int, int]):
@@ -80,8 +87,11 @@ class Viewport:
     
     def get_visible_world(self):
         """Returns the visible section of the map in world coords, as the midpoints of each side of a rectangle"""
-        width_offset = self.dimensions[0] / 2 / self.scale()
-        height_offset = self.dimensions[1] / 2 / self.scale()
+        
+        scale = self.get_scale()
+        
+        width_offset = self.dimensions[0] / 2 / scale
+        height_offset = self.dimensions[1] / 2 / scale
         
         return (
             self.centre[0] - width_offset,

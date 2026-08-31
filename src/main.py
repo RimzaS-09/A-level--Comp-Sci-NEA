@@ -7,7 +7,7 @@ from utils.vector_tile_parsing import vector_tile_pb2
 import gzip
 
 from PySide6.QtWidgets import QApplication
-
+from gui.window import MainWindow
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -16,15 +16,17 @@ MAP_DIR = DATA_DIR / "map"
 
 data = str(MAP_DIR/"OS_Open_Zoomstack.mbtiles")
 
-database = MBTileDatabase(data)
+map_databases = []
 
-data = database.get_tiles_of_zoomlevel(4)
-for datapoint in data:
-    raw_tile = gzip.decompress(datapoint[3])
-    tile = vector_tile_pb2.Tile()
-    tile.ParseFromString(raw_tile)
+for file in (DATA_DIR / "map").iterdir():
+    if file.is_file() and str(file).endswith(".mbtiles"):
+        map_databases.append(MBTileDatabase(file))
 
-print(tile)
+app = QApplication()
+
+window = MainWindow()
+
+app.exec()
 
 
 """
