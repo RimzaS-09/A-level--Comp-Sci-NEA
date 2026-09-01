@@ -51,6 +51,9 @@ class RenderedTile:
     
     def get_coords(self) -> tuple[int, int]:
         return self._tile_key[1:3]
+    
+    def get_image(self):
+        return self._image
 
 
 

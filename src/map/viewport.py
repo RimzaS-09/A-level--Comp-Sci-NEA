@@ -4,67 +4,90 @@ class Viewport:
     def __init__(self,
                 centre: tuple[float, float],
                 zoom_level = 6.0,
-                dimensions: tuple[int, int] = (800, 600),       
+                screen_dimensions: tuple[int, int] = (800, 600),       
                 ):
-        self.centre = centre
-        self.zoom_level = zoom_level
-        self.dimensions = dimensions
+        self._centre = centre
+        self._zoom_level = zoom_level
+        self._screen_dimensions = screen_dimensions
+        self._screen_centre = ( screen_dimensions[0] / 2, screen_dimensions[1] / 2 )
         
-        self.min_zoom = 0
-        self.max_zoom = 20
+        self._min_zoom = 0
+        self._max_zoom = 20
         
-        self.TILE_SIZE = 256
+        self._TILE_SIZE = 256
     
     def pan(self, dx, dy):
         scale = self.get_scale()
-        new_x = self.centre[0] - (dx / scale)
-        new_y = self.centre[0] - (dy / scale)
+        new_x = self._centre[0] - (dx / scale)
+        new_y = self._centre[1] - (dy / scale)
         
-        self.centre = (new_x, new_y)
+        self._centre = (new_x, new_y)
         self.clamp()
     
-    def get_scale(self):
-        return 2 ** self.zoom_level
     
-    def set_size(self, dimensions: tuple[int, int]):
-        self.dimensions = dimensions
+    ### Getters and setters ###
+    
+    def get_centre(self):
+        return self._centre
+    
+    def get_zoom_level(self):
+        return self._zoom_level
+    
+    def get_screen_size(self):
+        return self._screen_dimensions
+        
+    def get_screen_centre(self):
+        return self._screen_centre
+    
+    def set_screen_size(self, screen_dimensions: tuple[int, int]):
+        self._screen_dimensions = screen_dimensions
+        self._screen_centre = ( screen_dimensions[0] / 2, screen_dimensions[1] / 2 )
+        
         
     def set_zoom_limits(self, minimum, maximum):
-        self.min_zoom = minimum
-        self.max_zoom = maximum
+        self._min_zoom = minimum
+        self._max_zoom = maximum
+    
+    
     
     def clamp(self):
-        world_size = self.TILE_SIZE
+        return
+        world_size = self._TILE_SIZE
         
-        if self.centre[0] > world_size:
+        if self._centre[0] > world_size:
             clamped_x = world_size
-        elif self.centre[0] < 0.0:
+        elif self._centre[0] < 0.0:
             clamped_x = 0.0
         else:
-            clamped_x = self.centre[0]
+            clamped_x = self._centre[0]
             
         
-        if self.centre[1] > world_size:
+        if self._centre[1] > world_size:
             clamped_y = world_size
-        elif self.centre[1] < 0.0:
+        elif self._centre[1] < 0.0:
             clamped_y = 0.0
         else:
-            clamped_y = self.centre[1]
+            clamped_y = self._centre[1]
             
-        self.centre = (clamped_x, clamped_y)
+        self._centre = (clamped_x, clamped_y)
         
-        
+    def get_scale(self):
+        return 2 ** self._zoom_level
         
     def check_zoom_level(self, new_zoom):
         """returns a bool, to ensure zoom is legal or not."""
         
-        if (new_zoom < self.min_zoom) or (new_zoom > self.max_zoom):
+        if (new_zoom < self._min_zoom) or (new_zoom > self._max_zoom):
             return False
         
         return True
     
     def zoom_to_point(self, mouse_x, mouse_y, delta):
-        old_zoom = self.zoom_level
+        """
+        **SHOULD** zoom to a specified pixel point on the screen. mouse x and y represent the area in pixel coords. 
+        TODO: this doesn't work rn. FIX IT."""
+        
+        old_zoom = self._zoom_level
         new_zoom = old_zoom + delta
         
         if not self.check_zoom_level(new_zoom):
@@ -73,31 +96,31 @@ class Viewport:
         old_scale = 2 ** old_zoom
         new_scale = 2 ** new_zoom
         
-        screen_centre = ( self.dimensions[0] / 2, self.dimensions[1] / 2 )
+        screen_centre = ( self._screen_dimensions[0] / 2, self._screen_dimensions[1] / 2 )
         
         offset_x = mouse_x - screen_centre[0]
         offset_y = mouse_y - screen_centre[1]
         
-        world_x = self.centre[0] + (offset_x / old_scale)
-        world_y = self.centre[1] + (offset_y / old_scale)
+        world_x = self._centre[0] + (offset_x / old_scale)
+        world_y = self._centre[1] + (offset_y / old_scale)
         
-        self.centre = (world_x - (offset_x / new_scale) , world_y - (offset_y / new_scale))
+        self._centre = (world_x - (offset_x / new_scale) , world_y - (offset_y / new_scale))
         
-        self.zoom_level = new_zoom
+        self._zoom_level = new_zoom
     
     def get_visible_world(self):
         """Returns the visible section of the map in world coords, as the midpoints of each side of a rectangle"""
         
         scale = self.get_scale()
         
-        width_offset = self.dimensions[0] / 2 / scale
-        height_offset = self.dimensions[1] / 2 / scale
+        width_offset = self._screen_dimensions[0] / 2 / scale
+        height_offset = self._screen_dimensions[1] / 2 / scale
         
         return (
-            self.centre[0] - width_offset,
-            self.centre[1] - height_offset,
-            self.centre[0] + width_offset,
-            self.centre[1] + height_offset
+            self._centre[0] - width_offset,
+            self._centre[1] - height_offset,
+            self._centre[0] + width_offset,
+            self._centre[1] + height_offset
         )
         
     def get_tiles_visible(self, padding = 0):
@@ -115,10 +138,10 @@ class Viewport:
         right = bounds[2]
         bottom = bounds[3]
         
-        num_tiles_across = 2 ** self.zoom_level
+        num_tiles_across = 2 ** self._zoom_level
         
         # World coordinates go from 0-256 at zoom 0
-        tile_world_size = self.TILE_SIZE / num_tiles_across
+        tile_world_size = self._TILE_SIZE / num_tiles_across
 
         min_x = math.floor(left / tile_world_size) - padding
         max_x = math.floor(right / tile_world_size) + padding

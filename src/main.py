@@ -4,7 +4,6 @@ from pathlib import Path
 from application import Application
 from database_handling.sql_queries import MBTileDatabase
 from utils.vector_tile_parsing import vector_tile_pb2
-import gzip
 
 from PySide6.QtWidgets import QApplication
 from gui.window import MainWindow

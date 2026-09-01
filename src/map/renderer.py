@@ -30,7 +30,8 @@ from PySide6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
-    QColorConstants
+    QColorConstants,
+    QTransform
 )
 
 from utils.vector_tile_parsing import vector_tile_pb2
@@ -38,6 +39,9 @@ from utils.errors.errors import Error
 from map.layers import Layers, LayerStyle
 from models import TileKey, RenderedTile
 from map.viewport import Viewport
+
+from database_handling.sql_queries import MBTileDatabase
+from pathlib import Path
 
 
 
@@ -341,9 +345,36 @@ class TileRenderer:
 
 
 
-
-
-
 class MapRenderer:
-    def render_map(self, tiles: list[RenderedTile], viewport: Viewport, painter: QPainter):
-        print(viewport.get_visible_world())
+    def render_map(self, _tiles: list[RenderedTile], viewport: Viewport, painter: QPainter):
+        ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+        DATA_DIR = ROOT_DIR / "data"
+        MAP_DIR = DATA_DIR / "map"
+
+        path = str(MAP_DIR/"OS_Open_Zoomstack.mbtiles")
+
+        database = MBTileDatabase(path)
+        tiles = database.get_tiles_of_zoomlevel(0)
+        for tile in tiles:
+            tile_row = tile[1]
+            tile_column = tile[2]
+            tile_data = tile[3]
+            
+            image = TileRenderer().render_tile((0, tile_row, tile_column), tile_data)
+            
+            
+            transform = QTransform()
+            viewport_centre = viewport.get_centre()
+            
+            transform.translate(-viewport_centre[0], -viewport_centre[1])
+            scale = viewport.get_scale()
+            transform.translate(*viewport.get_screen_centre())
+            transform.scale(scale, scale)
+            
+            painter.setTransform(transform)
+            painter.drawImage(0, 0, image.get_image())
+            break
+            """"""
+    
+    def render_tile(self, tile: RenderedTile, viewport: Viewport, painter: QPainter):
+        pass

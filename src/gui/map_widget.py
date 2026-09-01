@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QWidget
 from map.renderer import MapRenderer
 from map.viewport import Viewport
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Signal
 
 class MapWidget(QWidget):
     def __init__(self):
@@ -22,30 +22,52 @@ class MapWidget(QWidget):
         self.viewport = Viewport((0,0), 0)
         self.renderer = MapRenderer()
         
-        self.last_position = None
+        self.viewport_changed = Signal(Viewport)
+
     
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  
         painter = QPainter(self)
         self.renderer.render_map(self.tiles, self.viewport, painter)
         return super().paintEvent(event)
     
+    
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        self.beginning_position = event.position()
+        return super().mousePressEvent(event)
+    
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if not self.last_position:
-            self.last_position = event.position()
-            return
         
         new_position = event.position()
         
-        dx = new_position.x() - self.last_position.x()
-        dy = new_position.y() - self.last_position.y()
+        dx = new_position.x() - self.beginning_position.x()
+        dy = new_position.y() - self.beginning_position.y()
         self.viewport.pan(dx, dy)
         
-        self.last_position = new_position
+        self.beginning_position = new_position
         
         self.update()
         return super().mouseMoveEvent(event)
+    
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        scroll_delta = event.angleDelta().y()
+        scroll_delta = scroll_delta / 120
+        
+        mouse = event.position()
+        
+        print("Mouse position at: ", mouse.toTuple())
+        self.viewport.zoom_to_point(mouse.x(), mouse.y(), scroll_delta)
+        self.update()
+        print(self.viewport.get_centre())
+        return super().wheelEvent(event)
+    
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        new_screen_size = event.size()
+        self.viewport.set_screen_size(new_screen_size.toTuple())
+        self.update()
+        return super().resizeEvent(event)
 
     @Slot(list)
     def set_tiles(self, tiles):
         self.tiles = tiles
         self.update()
+    
