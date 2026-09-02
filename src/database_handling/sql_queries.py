@@ -3,6 +3,7 @@ import json
 from ast import literal_eval as parser
 
 from .connect import SQLConnection
+from models import RawTile
 
 class SQLDatabase:
     def __init__(self, file_path):
@@ -54,12 +55,24 @@ class MBTileDatabase(SQLDatabase):
         
         return layers
         
-    def get_tiles_of_zoomlevel(self, zoomlevel):
-        return self.connection.fetch_all(f"SELECT * FROM tiles WHERE zoom_level=?", (zoomlevel,))
+    def get_tiles_of_zoomlevel(self, zoomlevel) -> list[RawTile]:
+        return_val = []
+        
+        for raw_tile in self.connection.fetch_all(f"SELECT * FROM tiles WHERE zoom_level=?", (zoomlevel,)):
+            tile_key = tuple(raw_tile[0:3])
+            return_val.append( RawTile(tile_key, raw_tile[3]) )
+        
+        return return_val
     
     def get_tile(self, zoom, row, column):
-        return self.connection.fetch_one(f"SELECT * FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?", (zoom, column, row))
+        raw_tile = self.connection.fetch_one(f"SELECT * FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?", (zoom, column, row))
+        tile_key = tuple(raw_tile[0:3])
+        
+        return RawTile(tile_key, raw_tile[3])
     
     def get_tile_data(self, zoom, row, column):
-        return self.connection.fetch_one(f"SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?", (zoom, column, row))
+        raw_tile = self.connection.fetch_one(f"SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?", (zoom, column, row))
+        tile_key = tuple(raw_tile[0:3])
+        
+        return RawTile(tile_key, raw_tile[3])
     

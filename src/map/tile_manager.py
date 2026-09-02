@@ -11,7 +11,7 @@ import threading
 
 from database_handling.sql_queries import MBTileDatabase
 
-from models import TileKey
+from models import TileKey, RenderedTile
 
 
 
@@ -37,7 +37,14 @@ class TileWorker(QRunnable):
         pass
 
 
-class TileManager:
-    def __init__(self, database: MBTileDatabase):
-        pass
+class TileManager(QObject):
+    tiles_changed = Signal(list[RenderedTile])
     
+    def __init__(self, database: MBTileDatabase):
+        database.get_tiles_of_zoomlevel(0)
+        
+        
+
+    @Slot(tuple)
+    def update_viewport(self, view_area):
+        pass

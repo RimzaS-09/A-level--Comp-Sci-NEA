@@ -37,7 +37,7 @@ from PySide6.QtGui import (
 from utils.vector_tile_parsing import vector_tile_pb2
 from utils.errors.errors import Error
 from map.layers import Layers, LayerStyle
-from models import TileKey, RenderedTile
+from models import TileKey, RenderedTile, RawTile
 from map.viewport import Viewport
 
 from database_handling.sql_queries import MBTileDatabase
@@ -300,14 +300,13 @@ class TileRenderer:
                 raise Error
 
 
-    def render_tile(self, tile_key: TileKey, gzipped_raw_tile) -> RenderedTile:
+    def render_tile(self, raw_tile: RawTile) -> RenderedTile:
         """Renders the requested tile & tileKey"""
         styles = Layers().get_layer_styles()
-
-        raw_tile = gzip.decompress(gzipped_raw_tile)
+        min_zooms = Layers().get_min_zooms()
         
         tile_data = vector_tile_pb2.Tile() # type: ignore
-        tile_data.ParseFromString(raw_tile)
+        tile_data.ParseFromString(raw_tile.get_vector_data())
         
         image = QImage(self.TILE_LENGTH, self.TILE_LENGTH, QImage.Format.Format_RGB32)
         image.fill(QColorConstants.White)
@@ -322,7 +321,7 @@ class TileRenderer:
             # Ignore any layers for contours. Probs don't need them
             # TODO: in the future, I need to expand it to other layer types asw
             # maybe store it in a skip_layers array
-            if (layer_name == "contours") or (not Layers().get_min_zooms().get(layer_name, None)):
+            if (layer_name == "contours") or (min_zooms.get(layer_name, 0) > raw_tile.get_zoom()):
                 continue
             
             layer_styling = styles.get(layer_name, None)
@@ -341,39 +340,43 @@ class TileRenderer:
         
         painter.end()
         
-        return RenderedTile(tile_key, image)
+        return RenderedTile(raw_tile.get_tile_key(), image)
 
 
 
 class MapRenderer:
-    def render_map(self, _tiles: list[RenderedTile], viewport: Viewport, painter: QPainter):
-        ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-        DATA_DIR = ROOT_DIR / "data"
-        MAP_DIR = DATA_DIR / "map"
-
-        path = str(MAP_DIR/"OS_Open_Zoomstack.mbtiles")
-
-        database = MBTileDatabase(path)
-        tiles = database.get_tiles_of_zoomlevel(0)
+    def render_map(self, tiles: list[RawTile], viewport: Viewport, painter: QPainter):
         for tile in tiles:
-            tile_row = tile[1]
-            tile_column = tile[2]
-            tile_data = tile[3]
+            tile_key = tile.get_tile_key()
+            tile_zoom = tile_key[0]
+            tile_column = tile_key[1]
+            tile_row = tile_key[2]
+            tile_data = tile.get_vector_data()
             
-            image = TileRenderer().render_tile((0, tile_row, tile_column), tile_data)
+            tile_row = (2 ** tile_zoom - 1) - tile_row
+            image = TileRenderer().render_tile(tile)
             
             
             transform = QTransform()
             viewport_centre = viewport.get_centre()
-            
-            transform.translate(-viewport_centre[0], -viewport_centre[1])
             scale = viewport.get_scale()
+            
+
+            # Matrix transformations are applied separately then combined
+            # Also means I can't change the order
             transform.translate(*viewport.get_screen_centre())
             transform.scale(scale, scale)
-            
+            transform.translate(-viewport_centre[0], -viewport_centre[1])
             painter.setTransform(transform)
-            painter.drawImage(0, 0, image.get_image())
-            break
+
+
+
+            painter.setTransform(transform)
+            
+            
+            y = tile_row * 256
+            x = tile_column * 256
+            painter.drawImage(x, y, image.get_image())
             """"""
     
     def render_tile(self, tile: RenderedTile, viewport: Viewport, painter: QPainter):

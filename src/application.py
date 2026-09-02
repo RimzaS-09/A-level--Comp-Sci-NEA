@@ -27,7 +27,7 @@ class Application:
         
         for file in (DATA_DIR / "map").iterdir():
             if file.is_file() and str(file).endswith(".mbtiles"):
-                self.map_databases.append(MBTileDatabase(SQLConnection(file)))
+                self.map_databases.append(MBTileDatabase(str(file)))
                 
 
         self.tile_manager = TileManager(self.map_databases[0])
@@ -37,13 +37,9 @@ class Application:
 
 
         # Connect application components
-        self.window.map_widget.viewport.connect(
-            self.tile_manager.update_viewport
-        )
+        self.window.map_widget.viewport.tiles_in_viewport.connect( self.tile_manager.update_viewport )
 
-        self.tile_manager.tiles_changed.connect(
-            self.window.map_widget.set_tiles
-        )
+        self.tile_manager.tiles_changed.connect( self.window.map_widget.set_tiles )
 
     def run(self):
         self.window.show()

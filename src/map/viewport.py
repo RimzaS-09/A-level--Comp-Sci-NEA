@@ -1,6 +1,11 @@
 import math
 
-class Viewport:
+from PySide6.QtCore import QObject, Signal, Slot
+
+class Viewport(QObject):
+    
+    tiles_in_viewport = Signal(tuple[int, int, int, int])
+    
     def __init__(self,
                 centre: tuple[float, float],
                 zoom_level = 6.0,
@@ -22,6 +27,8 @@ class Viewport:
         new_y = self._centre[1] - (dy / scale)
         
         self._centre = (new_x, new_y)
+        
+        self.tiles_in_viewport.emit(self.get_tiles_visible())
         self.clamp()
     
     
@@ -141,7 +148,7 @@ class Viewport:
         num_tiles_across = 2 ** self._zoom_level
         
         # World coordinates go from 0-256 at zoom 0
-        tile_world_size = self._TILE_SIZE / num_tiles_across
+        tile_world_size = self._TILE_SIZE
 
         min_x = math.floor(left / tile_world_size) - padding
         max_x = math.floor(right / tile_world_size) + padding
