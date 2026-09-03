@@ -15,7 +15,7 @@ from map.viewport import Viewport
 from PySide6.QtCore import Slot, Signal
 
 class MapWidget(QWidget):
-    def __init__(self):
+    def __init__(self, map_bounds: tuple):
         super().__init__()
 
         self.tiles = []

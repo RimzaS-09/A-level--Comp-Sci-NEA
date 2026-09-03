@@ -2,13 +2,30 @@ import math
 
 from PySide6.QtCore import QObject, Signal, Slot
 
+TILE_SIZE = 256
+PI = math.pi
+
+def longlat_to_world(zoom: int, long: float, lat: float) -> tuple:
+    normalised_x = (long + 180) / 360
+    normalised_y = 0.5 - math.log(math.tan( (PI/4) + (lat/2) )) / ( 2 * PI )
+    
+    world_x = normalised_x * TILE_SIZE * ( 2**zoom )
+    world_y = normalised_y * TILE_SIZE * ( 2**zoom )
+    
+    return (world_x, world_y)
+
+
+
+
 class Viewport(QObject):
     
-    tiles_in_viewport = Signal(tuple[int, int, int, int])
+    # Will emit signal in format:
+    #   ( zoom_level: int, (min_x, max_x, min_y, max_y) )
+    tiles_in_viewport = Signal(tuple)
     
     def __init__(self,
-                centre: tuple[float, float],
-                zoom_level = 6.0,
+                map_bounds: tuple,
+                zoom_level = 0.0,
                 screen_dimensions: tuple[int, int] = (800, 600),       
                 ):
         self._centre = centre
@@ -19,7 +36,9 @@ class Viewport(QObject):
         self._min_zoom = 0
         self._max_zoom = 20
         
-        self._TILE_SIZE = 256
+        
+        #self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
+        super().__init__()
     
     def pan(self, dx, dy):
         scale = self.get_scale()
@@ -28,7 +47,7 @@ class Viewport(QObject):
         
         self._centre = (new_x, new_y)
         
-        self.tiles_in_viewport.emit(self.get_tiles_visible())
+        self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
         self.clamp()
     
     
@@ -59,7 +78,7 @@ class Viewport(QObject):
     
     def clamp(self):
         return
-        world_size = self._TILE_SIZE
+        world_size = TILE_SIZE
         
         if self._centre[0] > world_size:
             clamped_x = world_size
@@ -114,6 +133,8 @@ class Viewport(QObject):
         self._centre = (world_x - (offset_x / new_scale) , world_y - (offset_y / new_scale))
         
         self._zoom_level = new_zoom
+        
+        self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
     
     def get_visible_world(self):
         """Returns the visible section of the map in world coords, as the midpoints of each side of a rectangle"""
@@ -148,7 +169,7 @@ class Viewport(QObject):
         num_tiles_across = 2 ** self._zoom_level
         
         # World coordinates go from 0-256 at zoom 0
-        tile_world_size = self._TILE_SIZE
+        tile_world_size = TILE_SIZE
 
         min_x = math.floor(left / tile_world_size) - padding
         max_x = math.floor(right / tile_world_size) + padding

@@ -42,9 +42,11 @@ class TileManager(QObject):
     
     def __init__(self, database: MBTileDatabase):
         database.get_tiles_of_zoomlevel(0)
+        super().__init__()
         
         
 
     @Slot(tuple)
     def update_viewport(self, view_area):
-        pass
+        print(f"Zoom is: {view_area[0]}")
+        print(f"X-range is: {view_area[1][0]} to {view_area[1][1]}")

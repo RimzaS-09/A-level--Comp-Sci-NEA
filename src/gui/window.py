@@ -13,7 +13,7 @@ from map.renderer import MapRenderer
 from gui.map_widget import MapWidget
 
 class MainWindow (pyqt.QMainWindow):
-    def __init__(self):
+    def __init__(self, map_bounds):
         super().__init__()
         
         self.setWindowTitle("A-Level NEA")
