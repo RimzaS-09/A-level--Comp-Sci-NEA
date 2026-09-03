@@ -24,10 +24,12 @@ class Viewport(QObject):
     tiles_in_viewport = Signal(tuple)
     
     def __init__(self,
-                map_bounds: tuple,
+                map_longlat_bounds: tuple,
                 zoom_level = 0.0,
                 screen_dimensions: tuple[int, int] = (800, 600),       
                 ):
+        
+        map_bounds = longlat_to_world(zoom_level, map_bounds)
         self._centre = centre
         self._zoom_level = zoom_level
         self._screen_dimensions = screen_dimensions
@@ -39,6 +41,9 @@ class Viewport(QObject):
         
         #self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
         super().__init__()
+        
+    
+    def calculate_centre
     
     def pan(self, dx, dy):
         scale = self.get_scale()
