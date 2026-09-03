@@ -15,11 +15,11 @@ from map.viewport import Viewport
 from PySide6.QtCore import Slot, Signal
 
 class MapWidget(QWidget):
-    def __init__(self, map_bounds: tuple):
+    def __init__(self, map_centre: tuple):
         super().__init__()
 
         self.tiles = []
-        self.viewport = Viewport((0,0), 0)
+        self.viewport = Viewport( (map_centre[0], map_centre[1]), map_centre[2])
         self.renderer = MapRenderer()
         
         self.viewport_changed = Signal(Viewport)
@@ -50,7 +50,7 @@ class MapWidget(QWidget):
     
     def wheelEvent(self, event: QWheelEvent) -> None:
         scroll_delta = event.angleDelta().y()
-        scroll_delta = scroll_delta / 120
+        scroll_delta = int(scroll_delta / 120)
         
         mouse = event.position()
         

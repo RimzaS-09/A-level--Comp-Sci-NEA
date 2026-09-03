@@ -13,14 +13,14 @@ from map.renderer import MapRenderer
 from gui.map_widget import MapWidget
 
 class MainWindow (pyqt.QMainWindow):
-    def __init__(self, map_bounds):
+    def __init__(self, map_centre):
         super().__init__()
         
         self.setWindowTitle("A-Level NEA")
         
         self.setMinimumSize(720, 480)
         
-        self.map_widget = MapWidget()
+        self.map_widget = MapWidget(map_centre)
         self.setCentralWidget(self.map_widget)
         
         self.create_menu()

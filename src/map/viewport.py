@@ -6,6 +6,7 @@ TILE_SIZE = 256
 PI = math.pi
 
 def longlat_to_world(zoom: int, long: float, lat: float) -> tuple:
+    
     normalised_x = (long + 180) / 360
     normalised_y = 0.5 - math.log(math.tan( (PI/4) + (lat/2) )) / ( 2 * PI )
     
@@ -24,31 +25,31 @@ class Viewport(QObject):
     tiles_in_viewport = Signal(tuple)
     
     def __init__(self,
-                map_longlat_bounds: tuple,
-                zoom_level = 0.0,
+                longlat_centre: tuple,
+                zoom_level = 0,
                 screen_dimensions: tuple[int, int] = (800, 600),       
                 ):
+        super().__init__()
         
-        map_bounds = longlat_to_world(zoom_level, map_bounds)
-        self._centre = centre
+        self._centre = longlat_to_world(zoom_level, longlat_centre[0], math.radians(longlat_centre[1]))
         self._zoom_level = zoom_level
         self._screen_dimensions = screen_dimensions
         self._screen_centre = ( screen_dimensions[0] / 2, screen_dimensions[1] / 2 )
         
         self._min_zoom = 0
         self._max_zoom = 20
-        
-        
-        #self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
-        super().__init__()
-        
+                
     
-    def calculate_centre
+    def calculate_centre(self, lower_bound, upper_bound) -> tuple:
+        centre_x = (lower_bound[0] + upper_bound[0]) / 2
+        centre_y = (lower_bound[1] + upper_bound[1]) / 2
+        
+        return (centre_x, centre_y)
     
     def pan(self, dx, dy):
         scale = self.get_scale()
-        new_x = self._centre[0] - (dx / scale)
-        new_y = self._centre[1] - (dy / scale)
+        new_x = self._centre[0] - dx
+        new_y = self._centre[1] - dy
         
         self._centre = (new_x, new_y)
         
@@ -82,8 +83,7 @@ class Viewport(QObject):
     
     
     def clamp(self):
-        return
-        world_size = TILE_SIZE
+        world_size = TILE_SIZE * (2 ** self._zoom_level)
         
         if self._centre[0] > world_size:
             clamped_x = world_size
@@ -114,9 +114,6 @@ class Viewport(QObject):
         return True
     
     def zoom_to_point(self, mouse_x, mouse_y, delta):
-        """
-        **SHOULD** zoom to a specified pixel point on the screen. mouse x and y represent the area in pixel coords. 
-        TODO: this doesn't work rn. FIX IT."""
         
         old_zoom = self._zoom_level
         new_zoom = old_zoom + delta
@@ -127,16 +124,18 @@ class Viewport(QObject):
         old_scale = 2 ** old_zoom
         new_scale = 2 ** new_zoom
         
+        scale_ratio = new_scale / old_scale
+        
         screen_centre = ( self._screen_dimensions[0] / 2, self._screen_dimensions[1] / 2 )
         
         offset_x = mouse_x - screen_centre[0]
         offset_y = mouse_y - screen_centre[1]
         
-        world_x = self._centre[0] + (offset_x / old_scale)
-        world_y = self._centre[1] + (offset_y / old_scale)
+        world_x = ( self._centre[0] + (offset_x) ) * (scale_ratio)
+        world_y = ( self._centre[1] + (offset_y) ) * (scale_ratio)
         
-        self._centre = (world_x - (offset_x / new_scale) , world_y - (offset_y / new_scale))
-        
+        self._centre = (world_x - (offset_x) , world_y - (offset_y))
+                
         self._zoom_level = new_zoom
         
         self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
@@ -146,8 +145,8 @@ class Viewport(QObject):
         
         scale = self.get_scale()
         
-        width_offset = self._screen_dimensions[0] / 2 / scale
-        height_offset = self._screen_dimensions[1] / 2 / scale
+        width_offset = self._screen_dimensions[0] / 2
+        height_offset = self._screen_dimensions[1] / 2
         
         return (
             self._centre[0] - width_offset,
@@ -200,6 +199,16 @@ class Viewport(QObject):
             max_y = 0
         elif max_y > (num_tiles_across - 1):
             max_y = num_tiles_across - 1
+            
+        # TMS conversion 
+        min_y = (2 ** self._zoom_level - 1) - min_y
+        max_y = (2 ** self._zoom_level - 1) - max_y
+        
+        # The TMS conversion flips the two variables. min becomes max, max becomes min. This reverses it (hopefully)
+        if max_y < min_y:
+            temp = min_y
+            min_y = max_y
+            max_y = temp
         
         return (min_x, max_x, min_y, max_y)
         

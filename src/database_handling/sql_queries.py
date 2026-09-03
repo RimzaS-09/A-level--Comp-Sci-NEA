@@ -37,9 +37,9 @@ class MBTileDatabase(SQLDatabase):
         
         return self.connection.fetch_one("SELECT value FROM metadata WHERE name=?", (item, ))[0]
     
-    def get_center(self):
-        center = parser(self.connection.fetch_one("SELECT value FROM metadata WHERE name='center'")[0])
-        return center
+    def get_centre(self):
+        centre = parser(self.connection.fetch_one("SELECT value FROM metadata WHERE name='center'")[0])
+        return centre
 
     def get_layers_as_json(self):
         layers = json.loads(self.connection.fetch_one("SELECT value FROM metadata WHERE name='json'")[0])

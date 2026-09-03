@@ -345,39 +345,29 @@ class TileRenderer:
 
 
 class MapRenderer:
-    def render_map(self, tiles: list[RawTile], viewport: Viewport, painter: QPainter):
+    def render_map(self, tiles: list[RenderedTile], viewport: Viewport, painter: QPainter):
+        
+        viewport_centre = viewport.get_centre()
+        screen_centre = viewport.get_screen_centre()
+        
         for tile in tiles:
-            tile_key = tile.get_tile_key()
-            tile_zoom = tile_key[0]
-            tile_column = tile_key[1]
-            tile_row = tile_key[2]
-            tile_data = tile.get_vector_data()
-            
-            tile_row = (2 ** tile_zoom - 1) - tile_row
-            image = TileRenderer().render_tile(tile)
-            
-            
             transform = QTransform()
-            viewport_centre = viewport.get_centre()
-            scale = viewport.get_scale()
-            
 
             # Matrix transformations are applied separately then combined
             # Also means I can't change the order
-            transform.translate(*viewport.get_screen_centre())
-            transform.scale(scale, scale)
+            transform.translate(*screen_centre)
             transform.translate(-viewport_centre[0], -viewport_centre[1])
             painter.setTransform(transform)
 
-
-
             painter.setTransform(transform)
-            
+
+            tile_column = tile.get_coords()[0]
+            tile_row = tile.get_coords()[1]
+            tile_row = (2 ** viewport.get_zoom_level() - 1) - tile_row  # TMS conversion
             
             y = tile_row * 256
             x = tile_column * 256
-            painter.drawImage(x, y, image.get_image())
-            """"""
+            painter.drawImage(x, y, tile.get_image())
     
     def render_tile(self, tile: RenderedTile, viewport: Viewport, painter: QPainter):
         pass

@@ -23,7 +23,7 @@ MAP_DIR = DATA_DIR / "map"
 class Application:
     def __init__(self):
         
-        self.map_databases = []
+        self.map_databases: list[MBTileDatabase] = []
         
         for file in (DATA_DIR / "map").iterdir():
             if file.is_file() and str(file).endswith(".mbtiles"):
@@ -31,14 +31,14 @@ class Application:
                 
 
         self.tile_manager = TileManager(self.map_databases[0])
-
-        self.window = MainWindow()
+        
+        map_centre = self.map_databases[0].get_centre()
+        self.window = MainWindow(map_centre)
         
 
 
         # Connect application components
         self.window.map_widget.viewport.tiles_in_viewport.connect( self.tile_manager.update_viewport )
-
         self.tile_manager.tiles_changed.connect( self.window.map_widget.set_tiles )
 
     def run(self):
