@@ -6,6 +6,7 @@ TILE_SIZE = 256
 PI = math.pi
 
 def longlat_to_world(zoom: int, long: float, lat: float) -> tuple:
+    # NOTE: could raise error of type InvalidCoordinateError
     
     normalised_x = (long + 180) / 360
     normalised_y = 0.5 - math.log(math.tan( (PI/4) + (lat/2) )) / ( 2 * PI )

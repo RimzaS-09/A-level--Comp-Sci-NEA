@@ -1,0 +1,19 @@
+The majority of work is done here, except:
+
+    - layers.py - needs to connect to the OS open zoomstack premade stylesheet for proper stylings.
+    - styles.py - might be redundant with layers.py including layer_styles. idk. we'll see.
+    - renderer.py - Needs to render street names, POI names and other symbols (e.g, airport sign for airports, national rail symbol for stations) next to/in the geometry itself
+    - tile_manager.py - STILL NO CACHE SETUP!!! very important for later on
+    - cache.py - Probably needed. Store cache as a stack-based system
+
+
+Not started yet:
+    - cache.py
+    - styles.py
+
+Finished for demo, unfinished for final build:
+    - renderer.py
+    - tile_manager.py
+
+Done:
+    - viewport.py

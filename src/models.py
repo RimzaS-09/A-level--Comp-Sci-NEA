@@ -10,13 +10,32 @@ from utils.vector_tile_parsing import vector_tile_pb2
 # (zoom, column, row)
 TileKey = tuple[int, int, int]
 
+# Constant containing the width/height of 1 tile, in pixels
+TILE_SIZE = 256
+
 
 class Geometry:
-    def __init__(self, coords) -> None:
-        self.coords = coords
+    def __init__(self, coords: list[tuple]) -> None:
+        self._coords = coords
         
     def get_points(self):
-        return self.coords
+        return self._coords
+    
+    def into_world_coords(self, tile_x, tile_y, extent = 4096):
+        """
+        Converts all coordinates into world-based coordinates, using the 256-depth system I made for viewport
+        NOTE: tile x and tile y should be in TMS format (i.e, y is the tile_row flipped)
+        """
+
+        world_coords = []
+        
+        for coord in self._coords:
+            world_x = tile_x * TILE_SIZE + (coord[0] / extent) * TILE_SIZE
+            world_y = tile_y * TILE_SIZE + (coord[1] / extent) * TILE_SIZE
+            
+            world_coords.append( (world_x, world_y) )
+
+        return world_coords 
 
 class Point(Geometry):
     def __init__(self, coords) -> None:
@@ -85,11 +104,20 @@ class RawTile:
 
 
 
-class Graph():
-    pass
+class Node():
+    def __init__(self) -> None:
+        pass
+
+
+class Edges():
+    def __init__(self) -> None:
+        pass
+
+
 
 class TSP_Algorithm():
     pass
+
 
 
 class PathfindingAlgorithm():

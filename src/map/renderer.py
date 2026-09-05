@@ -37,28 +37,35 @@ from PySide6.QtGui import (
 from utils.vector_tile_parsing import vector_tile_pb2
 from utils.errors.errors import Error
 from map.layers import Layers, LayerStyle
-from models import TileKey, RenderedTile, RawTile
+from models import TileKey, RenderedTile, RawTile, TILE_SIZE
 from map.viewport import Viewport
 
 from database_handling.sql_queries import MBTileDatabase
 from pathlib import Path
 
 
-
-
-
 EXTENT = 4096
+
+
+
 
 
 
 class TileRenderer:
     """
     Renders only 1 tile into a `QImage`
+    
+    ## Methods:
+    `render_tile(self, raw_tile: RawTile) -> RenderedTile`:
+    
+    Renders a specified, raw binary, unzipped tile into a rendered `QImage` style tile
+    
+    ##  Usage:
+    Crete 1 Object of the class to handle all the tiles. Then for every raw tile, call `render_tile`
     """
     
     
-    # Constant containing the width/height of 1 tile, in pixels
-    TILE_LENGTH = 256
+
 
     def _decode_zigzag(self, val):
         return (val >> 1) ^ -(val & 1)
@@ -88,7 +95,7 @@ class TileRenderer:
         ### TODO: this was previously used to create a polygon's default pen.
         ### I've since added this pen into layers, so I should safely delete it.
         ### But I should first benchmark what performance the layer class is giving me before doing that
-        ### If poor, revert to ts
+        ### If poor, revert to this
         
         pen = QPen(QColorConstants.Black)
         pen.setWidthF(0.75)
@@ -142,8 +149,7 @@ class TileRenderer:
 
             if command_id != 1:
                 # Point geometry should only use MoveTo.
-                # TODO:
-                #   -Implement some sort of InvalidGeometry Exception to this
+                # NOTE: Implement some sort of InvalidGeometry Exception to this
                 break
 
             for command in range(command_count):
@@ -295,8 +301,9 @@ class TileRenderer:
                 self._render_polygon(painter, feature.geometry, style)
             
             else:
-                # TODO: Implement Special Geo-error for this!!!
+                # NOTE: Implement Special Geo-error for this!!!
                 # Dont forget it
+                # InvalidGeometryError
                 raise Error
 
 
@@ -306,9 +313,12 @@ class TileRenderer:
         min_zooms = Layers().get_min_zooms()
         
         tile_data = vector_tile_pb2.Tile() # type: ignore
+        
+        # NOTE: could raise error type TileDecodeError
+        # Or TileParseError
         tile_data.ParseFromString(raw_tile.get_vector_data())
         
-        image = QImage(self.TILE_LENGTH, self.TILE_LENGTH, QImage.Format.Format_RGB32)
+        image = QImage(TILE_SIZE, TILE_SIZE, QImage.Format.Format_RGB32)
         image.fill(QColorConstants.White)
         
         painter = QPainter(image)
@@ -329,7 +339,7 @@ class TileRenderer:
                 layer_styling = styles["default"]
             
             extent = layer.extent
-            scale_to_image = self.TILE_LENGTH / extent
+            scale_to_image = TILE_SIZE / extent
             
             painter.save()
             painter.scale(scale_to_image, scale_to_image)

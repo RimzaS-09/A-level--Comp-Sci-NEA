@@ -20,6 +20,7 @@ class MapWidget(QWidget):
 
         self.tiles = []
         self.viewport = Viewport( (map_centre[0], map_centre[1]), map_centre[2])
+        self.viewport.set_zoom_limits(0, 14)
         self.renderer = MapRenderer()
         
         self.viewport_changed = Signal(Viewport)
@@ -53,11 +54,10 @@ class MapWidget(QWidget):
         scroll_delta = int(scroll_delta / 120)
         
         mouse = event.position()
-        
-        print("Mouse position at: ", mouse.toTuple())
         self.viewport.zoom_to_point(mouse.x(), mouse.y(), scroll_delta)
         self.update()
-        print(self.viewport.get_centre())
+        
+        print("zoom level at: ", self.viewport.get_zoom_level())
         return super().wheelEvent(event)
     
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:

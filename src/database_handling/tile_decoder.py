@@ -19,7 +19,10 @@ from itertools import batched
     
     
 """
-This File handles with any code relating to decoding MapBox Tiles and MapBox Vector Tile data.
+This File handles with any code relating to parsing MapBox Tiles and MapBox Vector Tile data into abstract OOP representations.
+
+Note: This is NOT for rendering. That's handled by renderer.py, which converts directly to a QImage (since it's a hotpath).
+This is to be used by preprocessor.py for graph creating.
 """
 
 
@@ -39,7 +42,7 @@ def parse_tags(tags, keys, values):
     return_val = dict()
     # TODO: make return_val user-defined hashmap
     for key, value in batched(tags, 2):
-        return_val[keys[key]] = values[value]
+        return_val[keys[key]] = values[value].ListFields()[0][1]
     return return_val
 
 
@@ -161,7 +164,7 @@ class Layer:
         self.name = name
         self.extent = extent
         
-        self.features = []
+        self.features: list[Feature] = []
         
         for feature in features:
             self.features.append(decode_feature(feature, keys, values))
@@ -171,28 +174,41 @@ class Layer:
 
 
 class DecodedTile():
-    def __init__(self, zoom_level, tile_column, tile_row, raw_tile):
-        self.layers = []
-        self.zoom_level = zoom_level
-        self.tile_column = tile_column
-        self.tile_row = tile_row
+    def __init__(self, raw_tile: RawTile, layers_to_decode = None):
+        self.layers: list[Layer] = []
+        self.tile_key = raw_tile.get_tile_key()
         
-        self.x = self.tile_column
-        self.y = (2 ** self.zoom_level - 1) - self.tile_row
-        
+        self.x = self.tile_key[1]
+        self.y = (2 ** self.tile_key[0] - 1) - self.tile_key[2]
+
         tile_data = vector_tile_pb2.Tile() # type: ignore
-        tile_data.ParseFromString(gzip.decompress(raw_tile))
+        tile_data.ParseFromString(raw_tile.get_vector_data())
         
+
         for index, layer in enumerate(tile_data.layers):
-            self.layers.append( Layer(index,
-                                      layer.version,
-                                      layer.name,
-                                      layer.features,
-                                      layer.extent,
-                                      layer.keys,
-                                      layer.values
-                                      )
-                               )
+            if not layers_to_decode:
+                self.layers.append( Layer(index,
+                                        layer.version,
+                                        layer.name,
+                                        layer.features,
+                                        layer.extent,
+                                        layer.keys,
+                                        layer.values
+                                        )
+                                )
+            else:
+                if layer.name in layers_to_decode:
+                    self.layers.append( Layer(index,
+                                            layer.version,
+                                            layer.name,
+                                            layer.features,
+                                            layer.extent,
+                                            layer.keys,
+                                            layer.values
+                                            )
+                                    )
+                else:
+                    continue     
                 
         
     
@@ -227,7 +243,8 @@ class DecodedTile():
             parameters_to_skip = parameter_counts[command_id] * command_count
 
             if i + parameters_to_skip > len(geometry):
-                raise ValueError("Geometry contains insufficient parameters")
+                # NOTE: Replace with InvalidGeometry error
+                raise ValueError
 
             i += parameters_to_skip
 

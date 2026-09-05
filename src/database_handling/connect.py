@@ -55,7 +55,29 @@ class SQLConnection():
         cursor = self._get_threaded_cursor()
 
         return cursor.execute(command, params).fetchone()
+    
+    def iter_fetch(self, command: str, params=()):
+        cursor = self._get_threaded_cursor()
+        
+        for tile in cursor.execute(command, params):
+            yield tile
+    
 
+
+    def excec_command(self, command: str):
+        cursor = self._get_threaded_cursor()
+        cursor.execute(command)
+
+
+    def commit(self):
+        # MUST be performed before write tasks
+        
+        connection = getattr(self._local, "connection", None)
+        
+        if connection is not None:
+            connection.commit()
+        
+    
     def close_current_thread(self):
         """
         Close the connection belonging to

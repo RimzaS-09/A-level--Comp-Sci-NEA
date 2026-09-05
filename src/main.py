@@ -2,24 +2,27 @@ import sys
 from pathlib import Path
 
 from application import Application
-from database_handling.sql_queries import MBTileDatabase
-from utils.vector_tile_parsing import vector_tile_pb2
+from utils.preprocessor import preprocessor
 
 from PySide6.QtWidgets import QApplication
-from gui.window import MainWindow
 
 
 
 
 
 def main():
-    qt_app = QApplication(sys.argv)
-
-    application = Application()
+    application = Application(sys.argv)
     application.run()
-
-    sys.exit(qt_app.exec())
 
 
 if __name__ == "__main__":
-    main()
+    
+    print("If you have not yet processed your geodata in data/map/, press 1 to begin preprocessing")
+    print("If you've already processed it through this tool, press 2 to launch the app")
+    program_purpose = input("Enter: ")
+    
+    if program_purpose == "1":
+        print("\n\n")
+        preprocessor.menu_screen()
+    else:
+        main()

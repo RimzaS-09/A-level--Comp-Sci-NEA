@@ -57,6 +57,7 @@ class TileManager(QObject):
 
     @Slot(tuple)
     def update_viewport(self, view_area):
+        # NOTE: Both lists can be replaced with linked lists in the future
         tiles_to_render = []
         self.tiles_rendered = []
 
@@ -69,7 +70,8 @@ class TileManager(QObject):
             for y in range(int(coord_area[2]), int(coord_area[3] + 1)):
 
                 tile = self.database.get_tile(zoom, y, x)
-                tiles_to_render.append(tile)
+                if tile:
+                    tiles_to_render.append(tile)
 
         for tile in tiles_to_render:
             worker = TileWorker(tile)
