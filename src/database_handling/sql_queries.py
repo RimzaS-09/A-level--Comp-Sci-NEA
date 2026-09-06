@@ -45,7 +45,7 @@ class GraphDatabase(SQLDatabase):
         """
         CREATE TABLE IF NOT EXISTS nodes (
             id  INTEGER PRIMARY KEY,
-            kind TEXT,
+            type TEXT,
             name TEXT,
             world_x REAL,
             world_y REAL,
@@ -85,11 +85,14 @@ class GraphDatabase(SQLDatabase):
             super().__init__(file_path, read_only=True)
     
     
+    def bulk_insert(self, table_name, table_rows: list[tuple]):
+        self.connection.exec_many(f"INSERT INTO {table_name} VALUES()")
+    
+    
     def commit_changes(self):
         """Changes MUST be commited before finalisation"""
         
-        self.connection.commit()
-            
+        self.connection.commit()    
     
     def create_tables(self):
         for table_create in self.database_tables:

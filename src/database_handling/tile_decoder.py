@@ -46,9 +46,9 @@ def parse_tags(tags, keys, values):
     return return_val
 
 
-def decode_geometry(raw_geometry, geom_type):
+def decode_geometry(raw_geometry, geom_type) -> list[Geometry]:
     coordinates = []
-    return_geoms = []
+    return_geoms: list[Geometry] = []
     temp_lines = []
     
     parameters = 0
@@ -109,7 +109,7 @@ def decode_geometry(raw_geometry, geom_type):
     match geom_type:
         case vector_tile_pb2.Tile.GeomType.POINT: # type: ignore
             for coord in coordinates:
-                return_geoms.append(Point(coord))
+                return_geoms.append(Point([coord]))
         
         case vector_tile_pb2.Tile.GeomType.LINESTRING: # type: ignore
             return_geoms.append(LineString(coordinates))
@@ -149,7 +149,7 @@ class GeomCommand(Enum):
 class Feature:
     def __init__(self, geom_type, geometry, properties, id=None) -> None:
         self.geom_type = geom_type
-        self.geometry = geometry
+        self.geometry: list[Geometry] = geometry
         self.properties = properties
         self.id = id
         

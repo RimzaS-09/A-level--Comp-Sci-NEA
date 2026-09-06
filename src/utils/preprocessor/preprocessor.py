@@ -1,9 +1,10 @@
 from database_handling.sql_queries import MBTileDatabase, GraphDatabase
 from utils.vector_tile_parsing import vector_tile_pb2
-from models import RawTile, TileKey
+from models import RawTile, TileKey, tms_to_xyz, longlat_to_world, world_to_longlat
 from database_handling.tile_decoder import DecodedTile
 
 from pathlib import Path
+from itertools import pairwise
 import time
 import math
 
@@ -75,12 +76,140 @@ def progress_bar(progress, total):
 
 
 
+###
+###     PREPROCESSING FUNCTIONS
+###
 
 
+# NOTE: This is the mean Earth's radius. Idk how much difference it'll make, but maybe
+# Find the mean radius for the section of earth at britain?
+EARTH_RADIUS = 6371000
+
+
+
+node_id = 1
+road_id = 1
+edge_id = 1
+
+# Roads in layers aren't persistent throughout layers.
+# Instead, the zoomstack connects layers via overlapping their end points.
+# to stitch them together, I'll create this dict (NOTE: make Hashtable in future):
+
+node_index = dict()
+# Keyed as: (world_x, world_y, level)   'level' here means the road level (i.e is it above or below other roads)
+# Value as: node_id
+
+
+# Road_index uses the same hashtable principle to 1. store roads, and 2. prevent duplicate roads from being inserted
+# Lookup the key to check if road_id already exists
+road_index = dict()
+# Keyed as: (road_name, road_num, road_type, road_level)
+# Value as road_id
+
+
+
+poi_storage = []
+edge_storage = []
+
+
+def haversine(angle) -> float:
+    return ( 1 - math.cos(angle) ) / 2
+
+def arc_haversine(num) -> float:
+    angle = math.acos( 1 - (2 * num) )
+    length = angle * EARTH_RADIUS
+    return length
+
+
+def calc_weight(edge: tuple):
+    
+    long_1, lat_1 = world_to_longlat(ZOOM_LEVEL, *edge[0])
+    long_2, lat_2 = world_to_longlat(ZOOM_LEVEL, *edge[1])
+
+    delta_long = abs( long_2 - long_1 )
+    delta_lat = abs( lat_2 - lat_1 )
+    
+    return arc_haversine( haversine(delta_lat) + ( ( 1-haversine(delta_lat)-haversine(lat_1 + lat_2) ) * haversine(delta_long) ) )
+    
 
 def process_graph(tile: RawTile, graph_db: GraphDatabase):
-    decoded_tile = DecodedTile(tile, layers_to_decode=["roads"])
-    print(decoded_tile.layers[0].features[0].properties["number"])
+    global node_index
+    global road_index
+    
+    global node_id
+    global road_id
+    global edge_id
+    
+    global poi_storage
+    global edge_storage
+    
+    
+    decoded_tile = DecodedTile(tile, layers_to_decode=["roads", "names", "airports", "railwaystations"])
+    
+    for layer in decoded_tile.layers:
+        if layer.name == "roads":
+            for feature in layer.features:
+                # Convert the dict into a tuple for road attribs
+                # dictionarys are too expensive memory wise otherwise
+
+                
+                road_attributes = (
+                    feature.properties.get("name", None),
+                    feature.properties.get("number", None),
+                    feature.properties.get("type", None),
+                    # feature.properties.get("level", 0)      # Tunnels specifically bug out without a matching level
+                )
+                
+                # Roads without numbers or names are unsearchable, so omit them from the database
+                # BUT Tunnels do not have numbers or names, and have to be in the db to avoid severing two parts of the graph
+                # So Append them in anyways as structural edges
+                #if ( (not road_attributes[0]) or (not road_attributes[1]) ) and (road_attributes[2] != "Tunnels"):
+                #    continue
+                
+                # NOTE: omitted above road filtering lines to avoid severing the network
+                # TODO: find some way to link a road with no name to it's parent road_id
+                
+                if road_attributes[0] or road_attributes[1]:
+                    check_road = road_index.get(road_attributes, None)
+                    cur_road_id = road_id
+
+                    if check_road is None:
+                        road_index[road_attributes] = road_id
+                        road_id += 1
+                    
+                    
+                else:
+                    cur_road_id = None  # I.e, a purely structural node (e.g, the aforementioned Tunnels)
+                
+                
+                for geometry in feature.geometry:
+                    
+                    for geom_point in geometry.into_world_coords(decoded_tile.x, decoded_tile.y):
+                        
+                        check_node = node_index.get(geom_point, None )
+                        
+                        if not check_node:
+                            node_index[geom_point] = node_id #type: ignore
+                            node_id += 1
+
+                    for edge in pairwise(geometry.into_world_coords(decoded_tile.x, decoded_tile.y)):
+                        edge_storage.append( (edge_id, node_index[edge[0]], node_index[edge[1]], calc_weight(edge), "roads", cur_road_id) )
+
+                            
+                
+                
+        elif layer.name == "names":
+            # ALL 'names' layers come in the form of a point geometry in zoomstack
+            
+            for feature in layer.features:
+                if feature.geom_type != 1:
+                    raise Exception
+                geom_world = feature.geometry[0].into_world_coords(decoded_tile.x, decoded_tile.y)
+                print(len(feature.geometry))
+                poi_storage.append( (node_id, feature.properties["type"], feature.properties["name1"], geom_world) )
+    
+
+    
     
     # To implement: after this, stitch the geometries together between tiles
     # Not yet complete
@@ -89,7 +218,7 @@ def process_graph(tile: RawTile, graph_db: GraphDatabase):
     return
 
 
-def process_POIs(tiles: list[RawTile]):
+def process_POIs():
     pass
 
 
@@ -124,6 +253,8 @@ def process(database: MBTileDatabase) -> None:
         #progress_bar(cur_count, count)
         
     graph_db.close_thread()
+
+    
         
     print("\n\nSuccess!!")
             

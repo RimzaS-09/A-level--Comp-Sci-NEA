@@ -1,20 +1,12 @@
 import math
 
 from PySide6.QtCore import QObject, Signal, Slot
+from models import tms_to_xyz, longlat_to_world
 
 TILE_SIZE = 256
 PI = math.pi
 
-def longlat_to_world(zoom: int, long: float, lat: float) -> tuple:
-    # NOTE: could raise error of type InvalidCoordinateError
-    
-    normalised_x = (long + 180) / 360
-    normalised_y = 0.5 - math.log(math.tan( (PI/4) + (lat/2) )) / ( 2 * PI )
-    
-    world_x = normalised_x * TILE_SIZE * ( 2**zoom )
-    world_y = normalised_y * TILE_SIZE * ( 2**zoom )
-    
-    return (world_x, world_y)
+
 
 
 
@@ -32,7 +24,7 @@ class Viewport(QObject):
                 ):
         super().__init__()
         
-        self._centre = longlat_to_world(zoom_level, longlat_centre[0], math.radians(longlat_centre[1]))
+        self._centre = longlat_to_world(zoom_level, math.radians(longlat_centre[0]), math.radians(longlat_centre[1]))
         self._zoom_level = zoom_level
         self._screen_dimensions = screen_dimensions
         self._screen_centre = ( screen_dimensions[0] / 2, screen_dimensions[1] / 2 )
@@ -202,8 +194,8 @@ class Viewport(QObject):
             max_y = num_tiles_across - 1
             
         # TMS conversion 
-        min_y = (2 ** self._zoom_level - 1) - min_y
-        max_y = (2 ** self._zoom_level - 1) - max_y
+        min_y = tms_to_xyz(min_y, self._zoom_level)
+        max_y = tms_to_xyz(max_y, self._zoom_level)
         
         # The TMS conversion flips the two variables. min becomes max, max becomes min. This reverses it (hopefully)
         if max_y < min_y:

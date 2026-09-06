@@ -67,6 +67,10 @@ class SQLConnection():
     def excec_command(self, command: str):
         cursor = self._get_threaded_cursor()
         cursor.execute(command)
+        
+    def exec_many(self, command: str, params: list):
+        cursor = self._get_threaded_cursor()
+        cursor.executemany(command, params)
 
 
     def commit(self):
