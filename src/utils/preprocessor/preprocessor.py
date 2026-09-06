@@ -1,6 +1,6 @@
 from database_handling.sql_queries import MBTileDatabase, GraphDatabase
 from utils.vector_tile_parsing import vector_tile_pb2
-from models import RawTile, TileKey, tms_to_xyz, longlat_to_world, world_to_longlat
+from models import RawTile, TileKey, tms_to_xyz, longlat_to_world, world_to_longlat, get_tile_xyz, POI
 from database_handling.tile_decoder import DecodedTile
 
 from pathlib import Path
@@ -10,7 +10,7 @@ import math
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
-GRAPH_DIR = ROOT_DIR / "graph"
+GRAPH_DIR = DATA_DIR / "graph"
 GRAPH_DIR.mkdir(parents=True, exist_ok=True)
 MAP_DIR = DATA_DIR / "map"
 
@@ -96,18 +96,18 @@ edge_id = 1
 # to stitch them together, I'll create this dict (NOTE: make Hashtable in future):
 
 node_index = dict()
-# Keyed as: (world_x, world_y, level)   'level' here means the road level (i.e is it above or below other roads)
+# Keyed as: (world_x, world_y)
 # Value as: node_id
 
 
 # Road_index uses the same hashtable principle to 1. store roads, and 2. prevent duplicate roads from being inserted
 # Lookup the key to check if road_id already exists
 road_index = dict()
-# Keyed as: (road_name, road_num, road_type, road_level)
+# Keyed as: (road_name, road_num, road_type)
 # Value as road_id
 
 
-
+# Stored as tuple of: node_id, type, name1, (world_x, world_y))
 poi_storage = []
 edge_storage = []
 
@@ -130,7 +130,16 @@ def calc_weight(edge: tuple):
     delta_lat = abs( lat_2 - lat_1 )
     
     return arc_haversine( haversine(delta_lat) + ( ( 1-haversine(delta_lat)-haversine(lat_1 + lat_2) ) * haversine(delta_long) ) )
+
+
+def create_bucket(world_x, world_y, bucket_size):
     
+    tile_x = math.floor(world_x / bucket_size)
+    tile_y = math.floor(world_y / bucket_size)
+    
+    return (tile_x, tile_y)
+
+
 
 def process_graph(tile: RawTile, graph_db: GraphDatabase):
     global node_index
@@ -170,12 +179,13 @@ def process_graph(tile: RawTile, graph_db: GraphDatabase):
                 # TODO: find some way to link a road with no name to it's parent road_id
                 
                 if road_attributes[0] or road_attributes[1]:
-                    check_road = road_index.get(road_attributes, None)
-                    cur_road_id = road_id
+                    cur_road_id = road_index.get(road_attributes, None)
 
-                    if check_road is None:
+                    if cur_road_id is None:
                         road_index[road_attributes] = road_id
+                        cur_road_id = road_id
                         road_id += 1
+                        
                     
                     
                 else:
@@ -194,6 +204,7 @@ def process_graph(tile: RawTile, graph_db: GraphDatabase):
 
                     for edge in pairwise(geometry.into_world_coords(decoded_tile.x, decoded_tile.y)):
                         edge_storage.append( (edge_id, node_index[edge[0]], node_index[edge[1]], calc_weight(edge), "roads", cur_road_id) )
+                        edge_id += 1
 
                             
                 
@@ -202,24 +213,97 @@ def process_graph(tile: RawTile, graph_db: GraphDatabase):
             # ALL 'names' layers come in the form of a point geometry in zoomstack
             
             for feature in layer.features:
-                if feature.geom_type != 1:
-                    raise Exception
+                if feature.properties["type"] == "Country":
+                    continue
                 geom_world = feature.geometry[0].into_world_coords(decoded_tile.x, decoded_tile.y)
-                print(len(feature.geometry))
-                poi_storage.append( (node_id, feature.properties["type"], feature.properties["name1"], geom_world) )
-    
-
-    
-    
-    # To implement: after this, stitch the geometries together between tiles
-    # Not yet complete
-
-    
+                
+                #poi = POI()
+                poi_storage.append( (node_id, feature.properties["type"], feature.properties["name1"], *geom_world) )
+                node_id += 1
     return
 
 
 def process_POIs():
-    pass
+    global edge_id
+    global edge_storage
+    bucket_size = 8
+    
+    # Key: the x and y of a tile (in XYZ)
+    # Value: A list of node_ids that are in that tile
+    tile_nodes =  dict()
+    
+    for key in node_index.keys():
+        tile_xyz = create_bucket(*key, bucket_size)
+        
+        if not tile_nodes.get(tile_xyz, None):
+            tile_nodes[tile_xyz] = [ key ]
+        else:
+            tile_nodes[tile_xyz].append(key)
+    
+    count = 0
+    total_count = len(poi_storage)
+    
+    for poi in poi_storage:
+        closest_node_coord = None
+        closest_node_dist = None
+        poi_tile = create_bucket(poi[3][0], poi[3][1], bucket_size)
+        
+        for x in range(poi_tile[0] - 40, poi_tile[0] + 41):
+            for y in range(poi_tile[1] - 40, poi_tile[1] + 41):
+                struct_nodes_coords = tile_nodes.get((x, y), None)
+                
+                if not struct_nodes_coords:
+                    continue
+                
+                for struct_node_coord in struct_nodes_coords:         
+                    dist = math.dist(struct_node_coord, (poi[3][0], poi[3][1]))
+                    
+                    if closest_node_coord is None:
+                        closest_node_dist = dist
+                        closest_node_coord = struct_node_coord
+                    else:
+                        if dist < closest_node_dist :
+                            closest_node_dist = dist
+                            closest_node_coord = struct_node_coord
+        
+        closest_node = node_index[closest_node_coord]
+        edge_storage.append( (edge_id, closest_node, poi[0], calc_weight( (closest_node_coord, poi[3]) ), "structural", None ))
+        edge_id += 1
+        
+        
+        progress_bar(count, total_count)
+        count += 1
+
+
+def load_into_database(database: GraphDatabase):
+    # First, load the edges
+    database.bulk_insert_edges(edge_storage)
+    
+    nodes = []
+    for items in node_index.items():
+        longlat = world_to_longlat(ZOOM_LEVEL, *items[0])
+        nodes.append( (items[1], "structural", None, *items[0], *longlat) )
+        
+    database.bulk_insert_nodes(nodes)
+    
+    nodes = []
+    for items in poi_storage:
+        # node_id, type, name1, (world_x, world_y))
+        
+        longlat = world_to_longlat(ZOOM_LEVEL, *items[3])
+        nodes.append( (*items[0:3], *items[3], *longlat)  )
+    
+    database.bulk_insert_nodes(nodes)
+    
+    # road_index - (road_name, road_num, road_type) : road_id
+    # Must insert id, name, num, type in that order
+    roads = []
+    
+    for items in road_index.items():
+        roads.append( (items[1], *items[0]) )
+    
+    database.bulk_insert_roads(roads)
+      
 
 
 def process(database: MBTileDatabase) -> None:
@@ -228,7 +312,7 @@ def process(database: MBTileDatabase) -> None:
     cur_count = 0
     
     print(f"\n\nDone scanning tiles in database. {count} tiles were found")
-    input("Press enter to begin stage 1 of parsing (Creating the structural graph)...")
+    input("Press enter to begin stage 1 of preprocessing (Parsing & Creating the structural graph)...")
     print("\nBeginning graph creation...")
     
     
@@ -250,8 +334,18 @@ def process(database: MBTileDatabase) -> None:
 
         cur_count += 1
         
-        #progress_bar(cur_count, count)
-        
+        progress_bar(cur_count, count)
+    
+    print("\n...Success!")
+    input("Press enter to being stage 2 of preprocessing (attaching locations to the graph) ...")
+    print("\nAdding the locations to the graph nodes...")
+    
+    process_POIs()
+    print("\n...Success!")
+    input("Press enter to being stage 3 of preprocessing (Final insertions into the local database) ...")
+    print("\nAdding to the database...")
+    
+    load_into_database(graph_db)    
     graph_db.close_thread()
 
     

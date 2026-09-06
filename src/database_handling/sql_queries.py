@@ -68,8 +68,7 @@ class GraphDatabase(SQLDatabase):
             id  INTEGER PRIMARY KEY,
             name    TEXT,
             number  TEXT,
-            type    TEXT,
-            level   INTEGER
+            type    TEXT
         )
         """
         
@@ -85,8 +84,17 @@ class GraphDatabase(SQLDatabase):
             super().__init__(file_path, read_only=True)
     
     
-    def bulk_insert(self, table_name, table_rows: list[tuple]):
-        self.connection.exec_many(f"INSERT INTO {table_name} VALUES()")
+    def bulk_insert_edges(self, table_rows: list[tuple]):
+        self.connection.exec_many(f"INSERT INTO edges VALUES(?, ?, ?, ?, ?, ?)", table_rows)
+        self.commit_changes()
+        
+    def bulk_insert_roads(self, table_rows: list[tuple]):
+        self.connection.exec_many(f"INSERT INTO roads VALUES(?, ?, ?, ?)", table_rows)
+        self.commit_changes()
+    
+    def bulk_insert_nodes(self, table_rows: list[tuple]):
+        self.connection.exec_many(f"INSERT INTO nodes VALUES(?, ?, ?, ?, ?, ?, ?)", table_rows)
+        self.commit_changes()
     
     
     def commit_changes(self):
@@ -99,6 +107,11 @@ class GraphDatabase(SQLDatabase):
             self.connection.excec_command(table_create)
         
         self.commit_changes()
+        
+    
+    def iter_load_row(self, table_name: str):
+        for item in self.connection.iter_fetch(f"SELECT * FROM {table_name}"):
+            yield item
     
     
 

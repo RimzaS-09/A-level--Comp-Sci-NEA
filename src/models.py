@@ -4,10 +4,14 @@ import math
 
 from PySide6.QtGui import QImage
 from utils.vector_tile_parsing import vector_tile_pb2
+from database_handling.sql_queries import GraphDatabase
 
 """
 The purpose of models.py is to hold commonly used abstractions, e.g. functions and classes, to be used
 Throughout the code.
+
+
+TODO: A lot of my earlier code isn't fully updated to use these, new, general_purpose functions. Replace them in final refactoring.
 """
 
 
@@ -50,6 +54,14 @@ def world_to_longlat(zoom: int, world_x: float, world_y: float) -> tuple[float, 
 
 
 
+def get_tile_xyz(world_x, world_y):
+    
+    tile_x = math.floor(world_x / TILE_SIZE)
+    tile_y = math.floor(world_y / TILE_SIZE)
+    
+    return (tile_x, tile_y)
+
+
 
 # A typedef to shorten a tuple containing tile metadata
 # (zoom, column, row)
@@ -71,7 +83,6 @@ class Geometry:
         """
 
         world_coords = []
-        print(self._coords)
         for coord in self._coords:
             world_x = tile_x * TILE_SIZE + (coord[0] / extent) * TILE_SIZE
             world_y = tile_y * TILE_SIZE + (coord[1] / extent) * TILE_SIZE
@@ -83,9 +94,7 @@ class Geometry:
 class Point(Geometry):
     def __init__(self, coords) -> None:
         super().__init__(coords)
-        
-
-
+ 
 class LineString(Geometry):
     def __init__(self, coords) -> None:
         super().__init__(coords)
@@ -144,13 +153,69 @@ class RawTile:
 
 
 
+class POI():
+    def __init__(self, node_id, type, name, world_coords) -> None:
+        self._node_id = node_id
+        self._type = type
+        self._name = name
+        self._world_coords = world_coords
+    
+    def to_tuple(self):
+        return (self._node_id, self._type, self._name, *self._world_coords)
+    
+    def get_id(self):
+        return self._node_id
+    
+    def get_type(self):
+        return self._type
+    
+    def get_name(self):
+        return self._name
+    
+    def get_coords(self):
+        return self._world_coords
 
 
+# TODO: replace with actual hashtale
+def construct_node_hashtable_from_database(database: GraphDatabase) -> dict[int, Node]:
+    node_table = dict()
+    
+    for node in database.iter_load_row("nodes"):
+        id = node[0]
+        type = node[1]
+        name = node[2]
+        world_coords = (node[3],  node[4])
+        longlat = (node[5], node[6])
+        
+        node_table[id] = Node(id, type, name, world_coords, longlat)
+    
+    return node_table
+        
 
 class Node():
-    def __init__(self) -> None:
-        pass
-
+    def __init__(self, id: int, type: str,  name: str, world_coords: tuple[float, float], longlat: tuple[float, float]) -> None:
+        self._id = id
+        self._type = type
+        self._name = name
+        self._world_coords = world_coords
+        self._longlat = longlat
+    
+    
+    # Getters and setters:
+    def get_id(self):
+        return self._id
+    
+    def get_type(self):
+        return self._type
+    
+    def get_name(self):
+        return self._name
+    
+    def get_world_coords(self):
+        return self._world_coords
+    
+    def get_longlat(self):
+        return self._longlat
 
 class Edges():
     def __init__(self) -> None:
