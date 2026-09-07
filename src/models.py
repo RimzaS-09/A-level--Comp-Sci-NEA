@@ -1,10 +1,14 @@
+from __future__ import annotations
 from enum import Enum
 import gzip
 import math
 
+
 from PySide6.QtGui import QImage
 from utils.vector_tile_parsing import vector_tile_pb2
-from database_handling.sql_queries import GraphDatabase
+
+# Temp fix for circular import
+import database_handling
 
 """
 The purpose of models.py is to hold commonly used abstractions, e.g. functions and classes, to be used
@@ -176,20 +180,12 @@ class POI():
         return self._world_coords
 
 
-# TODO: replace with actual hashtale
-def construct_node_hashtable_from_database(database: GraphDatabase) -> dict[int, Node]:
-    node_table = dict()
-    
-    for node in database.iter_load_row("nodes"):
-        id = node[0]
-        type = node[1]
-        name = node[2]
-        world_coords = (node[3],  node[4])
-        longlat = (node[5], node[6])
-        
-        node_table[id] = Node(id, type, name, world_coords, longlat)
-    
-    return node_table
+
+
+
+
+
+
         
 
 class Node():
@@ -199,6 +195,7 @@ class Node():
         self._name = name
         self._world_coords = world_coords
         self._longlat = longlat
+        self._connected_edges = []
     
     
     # Getters and setters:
@@ -216,11 +213,117 @@ class Node():
     
     def get_longlat(self):
         return self._longlat
+    
+    
+    def append_edge(self, edge: Edge):
+        self._connected_edges.append(edge)
+        
+    def get_edges(self):
+        return self._connected_edges
 
-class Edges():
-    def __init__(self) -> None:
+
+class Edge():
+    def __init__(self, id: int, from_id: int, to_id: int, weight: float, edge_type: str, road_id: int) -> None:
+        self._id = id
+        self._from_id = from_id
+        self._to_id = to_id
+        self._weight = weight
+        self._edge_type = edge_type
+        self._road_id = road_id
+        
+    ## Getters and setters ##
+    
+    def get_id(self):
+        return self._id
+    
+    def get_connecting_nodes(self):
+        return (self._from_id, self._to_id)
+    
+    def get_weight(self):
+        return self._weight
+    
+    def get_edge_type(self):
+        return self._edge_type
+    
+    def get_road_id(self):
+        return self._road_id
+
+
+class Graph:
+    # TODO: I had to circumnavigate the sql_queries circlular import here. replace once a proper fix is made.
+    def __init__(self, database: database_handling.sql_queries.GraphDatabase) -> None:
+        self._database = database
+        self.construct_node_and_name_hashtable()
+        self.construct_road_hashtable()
+        self.construct_adjacency_list()
+
+    # TODO: replace with my own hashtable
+    def construct_node_and_name_hashtable(self):
+        self._node_table = dict()
+        self._name_table = dict()
+        
+        for node in self._database.iter_load_row("nodes"):
+            id = node[0]
+            type = node[1]
+            name = node[2]
+            world_coords = (node[3],  node[4])
+            longlat = (node[5], node[6])
+            
+            node = Node(id, type, name, world_coords, longlat)
+            
+            self._node_table[id] = node
+            
+            if name is not None:
+                check = self._name_table.get(name, None)
+                if check is None:
+                    self._name_table[name] = [node]
+                else:
+                    self._name_table[name].append(node)
+    
+    def construct_road_hashtable(self):
+        self._road_table = dict()
+        
+        for road in self._database.iter_load_row("roads"):
+            id = road[0]
+            name = road[1].lower()
+            number = road[2]
+            type = road[3]
+            
+            self._road_table[id] = (name, number, type)
+    
+    # This is a two-way adjacency list
+    # Bit inefficient, TODO: find optimisations
+    def construct_adjacency_list(self):
+        for row in self._database.iter_load_row("edges"):
+            id = row[0]
+            from_id = row[1]
+            to_id = row[2]
+            weight = row[3]
+            edge_type = row[4]
+            road_id = row[5]
+            
+            edge1 = Edge(id, from_id, to_id, weight, edge_type, road_id)
+            edge2 = Edge(id, to_id, from_id, weight, edge_type, road_id)
+            
+            self._node_table[from_id].append_edge(edge1)
+            self._node_table[to_id].append_edge(edge2)
+            
+    
+    def get_node(self, id: int):
+        return self._node_table.get(id, None)
+    
+    def search_name(self, name: str):
+        name = name.lower()    
+        return self._name_table.get(name, None)
+    
+    # heuristics-based algorithms dont work with haversine (circular) lengths, so calc world_coord distance here
+    # TODO: implement
+    def calc_straight_line_dist(self, node1, node2):
         pass
-
+    
+    
+            
+            
 
 
 class TSP_Algorithm():
