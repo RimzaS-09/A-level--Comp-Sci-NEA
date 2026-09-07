@@ -259,8 +259,8 @@ class Graph:
 
     # TODO: replace with my own hashtable
     def construct_node_and_name_hashtable(self):
-        self._node_table = dict()
-        self._name_table = dict()
+        self._node_table: dict[int, Node] = dict()
+        self._name_table: dict[str, list[Node]] = dict()
         
         for node in self._database.iter_load_row("nodes"):
             id = node[0]
@@ -273,7 +273,9 @@ class Graph:
             
             self._node_table[id] = node
             
+            
             if name is not None:
+                name = name.lower()
                 check = self._name_table.get(name, None)
                 if check is None:
                     self._name_table[name] = [node]
@@ -285,7 +287,7 @@ class Graph:
         
         for road in self._database.iter_load_row("roads"):
             id = road[0]
-            name = road[1].lower()
+            name = road[1]
             number = road[2]
             type = road[3]
             
@@ -332,5 +334,6 @@ class TSP_Algorithm():
 
 
 class PathfindingAlgorithm():
-    pass                       
+    def __init__(self) -> None:
+        pass   
                 

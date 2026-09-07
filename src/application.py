@@ -1,7 +1,8 @@
-from database_handling.sql_queries import MBTileDatabase
+from database_handling.sql_queries import MBTileDatabase, GraphDatabase
 from map.tile_manager import TileManager
 from gui.window import MainWindow
 from PySide6.QtWidgets import QApplication
+from models import Graph
 
 from database_handling.sql_queries import MBTileDatabase
 
@@ -11,6 +12,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 MAP_DIR = DATA_DIR / "map"
+GRAPH_DIR = DATA_DIR / "graph"
 
 class Application(QApplication):
     """User defined wrapper around QApplication"""
@@ -38,6 +40,8 @@ class Application(QApplication):
         self.tile_manager.tiles_changed.connect( self.window.map_widget.set_tiles )
         
         self.window.map_widget.viewport.pan(0, 0)
+        
+        self._graph = Graph(GraphDatabase(str(GRAPH_DIR / "graph.db")))
 
     def run(self):
         self.window.show()
