@@ -1,3 +1,11 @@
+# Map Database used by my program - Too large to store via github
 OS_Open_Zoomstack.mbtiles
+
+# Metadata
 .vscode
-**/__pychache__/
+**/__pycache__/
+*.pyc
+
+# Generated routing graph, built by the preprocessor
+data/graph/*.db
+graph/*.db
