@@ -81,7 +81,7 @@ def progress_bar(progress, total):
 ###
 
 
-# NOTE: This is the mean Earth's radius. Idk how much difference it'll make, but maybe
+# NOTE: This is the mean Earth's radius in metres. Idk how much difference it'll make, but maybe
 # Find the mean radius for the section of earth at britain?
 EARTH_RADIUS = 6371000
 

@@ -19,10 +19,16 @@ if __name__ == "__main__":
     
     print("If you have not yet processed your geodata in data/map/, press 1 to begin preprocessing")
     print("If you've already processed it through this tool, press 2 to launch the app")
-    program_purpose = input("Enter: ")
     
-    if program_purpose == "1":
-        print("\n\n")
-        preprocessor.menu_screen()
-    else:
-        main()
+    program_purpose = '0'
+    
+    while program_purpose not in ["1", "2"]:
+        program_purpose = input("Enter: ")
+        
+        if program_purpose == '1':
+            print("\n\n")
+            preprocessor.menu_screen()
+        elif program_purpose == '2':
+            main()
+        else:
+            print("Invalid input. Please reenter.\n")

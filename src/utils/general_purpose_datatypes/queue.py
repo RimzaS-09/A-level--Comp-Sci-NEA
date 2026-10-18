@@ -2,7 +2,7 @@
 This module contains the classes and other relevant tools related to my custom queue data structures
 """
 
-import errors
+from utils.errors import errors
 
 
 class QueueValue:
@@ -17,11 +17,12 @@ class QueueValue:
     """
     
     
-    def __init__(self, data, priority_level: int):
+    def __init__(self, data, priority_level: int|float):
         self.__data = data
         
-        # Priority level will be stored as an int
-        self.__lvl = int(priority_level)
+        # Priority level will be stored as either an int or float.
+        # floats are gonna be used by dijkstra, hence why its considered here
+        self.__lvl = priority_level
     
     ### Getters and setters ###
     def get_level(self):
@@ -81,7 +82,7 @@ class DynamicPriorityQueue(QueueInterface):
     def dequeue(self):
         if len(self.__data) == 0:
             # TODO!!! Add error for this!
-            pass
+            return None
         dequeued_item = self.__data[0]
         del self.__data[0]
         return dequeued_item.get_data()
@@ -93,6 +94,9 @@ class DynamicPriorityQueue(QueueInterface):
         print("\n}")
 
         print(f"Current queue length: {len(self.__data)}")
+    
+    def get_length(self):
+        return len(self.__data)
         
         
 class CircularQueue(QueueInterface):

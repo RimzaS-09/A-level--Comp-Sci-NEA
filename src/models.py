@@ -283,7 +283,7 @@ class Graph:
                     self._name_table[name].append(node)
     
     def construct_road_hashtable(self):
-        self._road_table = dict()
+        self._road_table: dict[int, tuple] = dict()
         
         for road in self._database.iter_load_row("roads"):
             id = road[0]
@@ -311,7 +311,7 @@ class Graph:
             self._node_table[to_id].append_edge(edge2)
             
     
-    def get_node(self, id: int):
+    def get_node(self, id: int) -> Node|None:
         return self._node_table.get(id, None)
     
     def search_name(self, name: str):
@@ -323,17 +323,64 @@ class Graph:
     def calc_straight_line_dist(self, node1, node2):
         pass
     
+    def get_all_poi_names(self) -> list[str]:
+        node_name_list = []
+        
+        # The reason why I iterate over each value in the name_table instead of key is casing.
+        # The casing is always generalised for the key, but I want to return the original casing back.
+        # Hence, grab the first node in the list, and get its name.
+        for nodes in self._name_table.values():
+            node_name_list.append(nodes[0].get_name())
+            
+        return node_name_list
+    
     
             
             
 
-
+# TODO
 class TSP_Algorithm():
     pass
 
 
 
 class PathfindingAlgorithm():
-    def __init__(self) -> None:
-        pass   
+    def __init__(self, graph: Graph) -> None:
+        self._graph = graph
+    
+    def find_path(self, point_a: int, point_b: int) -> list[Edge]:
+        """
+        Uses the relevant pathfinding algorithm generate a sequence of nodes and edges.
+        
+        Step 1 of 2 of **routefinding**
+        """
+        
+        pass
+    
+    def _trace_path(self, came_from: dict, target_id: int) -> list[Edge]:
+        """
+        `find_path` doesn't actually generate a list of edges by itself. It only generates a
+        **hashmap** of nodes, with each node_id keying to the relevant **edge** it was visited from.
+        
+        This protected method retraces the steps, starting from `target_id`'s value in the hashmap, and continually
+        going back each edge and each node in reverse, pushing it to a **stack** until it reaches an edge with no node it came from.
+        This represents the **starting node**, and hence the full path has been traced back.
+        
+        The values in the stack can then be popped one by one, allowing it to un-reverse the order back into being from the starting node to the end node.
+        
+        Step 2 of 2 of **routefinding**
+        
+        """
+        
+        pass
+    
+    # TODO
+    def benchmark(self):
+        """
+        This method shouldn't be *overridden*.
+        
+        It allows for any pathfinding algorithm to be benchmarked for a given starting and end node.
+        """
+        
+        pass
                 
