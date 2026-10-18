@@ -1,4 +1,4 @@
-import errors
+from utils.errors import errors
 
 class LinkedList():
     pass

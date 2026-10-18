@@ -9,3 +9,7 @@ OS_Open_Zoomstack.mbtiles
 # Generated routing graph, built by the preprocessor
 data/graph/*.db
 graph/*.db
+
+# Temporary benchmarks/test windows i made just to perform testing
+benchmark/template_window.py
+benchmark/pathfinding_benchmark/temp_dijkstra.py

@@ -15,7 +15,7 @@ MAP_DIR = DATA_DIR / "map"
 GRAPH_DIR = DATA_DIR / "graph"
 
 class Application(QApplication):
-    """User defined wrapper around QApplication"""
+    """Wrapper around QApplication"""
     def __init__(self, args):
         super().__init__(args)
         
@@ -28,20 +28,20 @@ class Application(QApplication):
         for file in (DATA_DIR / "map").iterdir():
             if file.is_file() and str(file).endswith(".mbtiles"):
                 self.map_databases.append(MBTileDatabase(str(file)))
-                
+        self._graph = Graph(GraphDatabase(str(GRAPH_DIR / "graph.db")))
+        
         # NOTE: could raise error type MapDataNotFoundError
         self.tile_manager = TileManager(self.map_databases[0])
         
         map_centre = self.map_databases[0].get_centre()
-        self.window = MainWindow(map_centre)
+        self.window = MainWindow(map_centre, self._graph.get_all_poi_names())
 
         # Connect application components
         self.window.map_widget.viewport.tiles_in_viewport.connect( self.tile_manager.update_viewport )
         self.tile_manager.tiles_changed.connect( self.window.map_widget.set_tiles )
         
         self.window.map_widget.viewport.pan(0, 0)
-        
-        self._graph = Graph(GraphDatabase(str(GRAPH_DIR / "graph.db")))
+  
 
     def run(self):
         self.window.show()
