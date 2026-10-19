@@ -1,8 +1,15 @@
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QDialog
+from PySide6.QtCore import Signal, Slot
+
+from utils.errors.errors import Error
 from gui.map_widget import MapWidget
-from gui.routing import RouteInputDialog
+from gui.routing import RouteInputDialog, DisplayRouteResultDialog
+from gui.dialogs import show_error
+from models import Route, MultiRoute
 
 class MainWindow (QMainWindow):
+    route_request = Signal(str, str)
+    
     def __init__(self, map_centre, location_names):
         super().__init__()
         
@@ -13,6 +20,8 @@ class MainWindow (QMainWindow):
         
         self.map_widget = MapWidget(map_centre)
         self.setCentralWidget(self.map_widget)
+        
+        self._route_result_dialog = None
         
         self.create_menu()
         self.show()
@@ -35,9 +44,10 @@ class MainWindow (QMainWindow):
     def new_two_stop_button(self):
         route_dialog = RouteInputDialog(self, self.location_names)
         route_option = route_dialog.exec()
-        if route_dialog.exec() != QDialog.DialogCode.Accepted:
+        if route_option != QDialog.DialogCode.Accepted:
             return 
         points = route_dialog.get_points()
+        self.route_request.emit(*points)
         
     def new_multi_stop_button(self):
         route_dialog = RouteInputDialog(self, self.location_names)
@@ -48,6 +58,27 @@ class MainWindow (QMainWindow):
         file_dialog = QFileDialog(self)
         file_dialog.setNameFilter("All mbtiles files (*.mbtiles)")
         file_dialog.exec()
+        
+    @Slot(Route)
+    def display_route(self, route: Route):
+        """Display both a route, and a blue line connecting the points on the route, on the map"""
+        coords = route.coord_points
+        self.map_widget.new_route(coords)
+        
+        if self._route_result_dialog is not None:
+            self._route_result_dialog.close()
+        self._route_result_dialog = DisplayRouteResultDialog(self, route)
+        self._route_result_dialog.show()
+
+    @Slot(MultiRoute)
+    def display_multi_route(self, multi_route):
+        pass
+        
+
+    @Slot(Error)
+    def display_error(self, err):
+        show_error(self, err)
+        
     
 
 

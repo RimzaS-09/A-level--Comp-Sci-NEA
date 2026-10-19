@@ -7,10 +7,6 @@ TILE_SIZE = 256
 PI = math.pi
 
 
-
-
-
-
 class Viewport(QObject):
     
     # Will emit signal in format:
@@ -31,23 +27,7 @@ class Viewport(QObject):
         
         self._min_zoom = 0
         self._max_zoom = 20
-                
     
-    def calculate_centre(self, lower_bound, upper_bound) -> tuple:
-        centre_x = (lower_bound[0] + upper_bound[0]) / 2
-        centre_y = (lower_bound[1] + upper_bound[1]) / 2
-        
-        return (centre_x, centre_y)
-    
-    def pan(self, dx, dy):
-        scale = self.get_scale()
-        new_x = self._centre[0] - dx
-        new_y = self._centre[1] - dy
-        
-        self._centre = (new_x, new_y)
-        
-        self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
-        self.clamp()
     
     
     ### Getters and setters ###
@@ -74,6 +54,78 @@ class Viewport(QObject):
         self._max_zoom = maximum
     
     
+    
+    ## Coodinate Conversion & Calculation methods ##
+    
+    def world_to_screen_coords(self, world_x, world_y) -> tuple[float, float]:
+        """
+        Say the current viewport has its top-left corner as (500, 500), and the screen is 500x500 pixels in dimensions.
+        This method performs 2 steps to convert it:
+        
+        1. subtracts the world coords by the current centre, so that the point is relative to the centre.
+        `self._centre` is in **world coordinates**, so in this situation is `(750, 750)`. hence, the points would be moved
+        to 500-750, which is -250. This means it is -250 left, -250 down from the centre-point
+        
+        2. offsets these localised coordinates into the pixel they should be in.
+        `self._screen_centre` is `(250, 250)` (screen dimensions / 2) and is measured in purely in the pixels of the screen.
+        Hence, this would transform the point to -250 + 250, which is 0. So the final coords is (0,0), corresponding to
+        the top-left of the screen correctly.
+        """
+        screen_x = world_x - self._centre[0] + self._screen_centre[0]
+        screen_y = world_y - self._centre[1] + self._screen_centre[1]
+        
+        return (screen_x, screen_y)
+
+    def screen_to_world_coords(self, screen_x, screen_y) -> tuple[float, float]:
+        """Inverse of `world_to_screen_coords`"""
+        world_x = screen_x - self._screen_centre[0] + self._centre[0]
+        world_y = screen_y - self._screen_centre[1] + self._centre[1]
+        
+        return (world_x, world_y)    
+    
+    def scale_to_zoom(self, unscaled_x, unscaled_y, old_zoom, new_zoom = None) -> tuple[float, float]:
+        """Scales a world coord in one scale to another. If `new_zoom` unspecified, defaults to the current *zoom level*"""
+        if not new_zoom:
+            # This replaces new_zoom as just the screen zoom if its unspecified.
+            new_zoom = self._zoom_level
+        
+        scale = 2 ** (new_zoom - old_zoom)
+        
+        return (unscaled_x * scale, unscaled_y * scale)
+    
+    def graph_to_screen_coords(self, x, y) -> tuple[float, float]:
+        """
+        All items in the zoom_level tile are stored as coordinates on zoom level 10.
+        This should be able to scale/downscale them as needed.
+        Plus, reorganise the coords so 0,0 is the top-left of the screen
+        """
+        GRAPH_ZOOM = 10
+        
+        scaled_coords = self.scale_to_zoom(x, y, GRAPH_ZOOM)
+        screen_coords = self.world_to_screen_coords(*scaled_coords)
+        
+        return screen_coords
+    
+    def screen_to_graph_coords(self, x, y) -> tuple[float, float]:
+        """
+        Inverse of `graph_to_screen_coords`. No clue when it'll be needed, tho
+        """
+        GRAPH_ZOOM = 10
+        
+        world_coords = self.screen_to_world_coords(x, y)
+        scaled_coords = self.scale_to_zoom(*world_coords, self._zoom_level, GRAPH_ZOOM)
+        
+        return scaled_coords    
+    
+    def calculate_centre(self, lower_bound, upper_bound) -> tuple[float, float]:
+        centre_x = (lower_bound[0] + upper_bound[0]) / 2
+        centre_y = (lower_bound[1] + upper_bound[1]) / 2
+        
+        return (centre_x, centre_y)
+    
+    
+    
+    ## Utility Functions ##
     
     def clamp(self):
         world_size = TILE_SIZE * (2 ** self._zoom_level)
@@ -105,7 +157,22 @@ class Viewport(QObject):
             return False
         
         return True
+
+
+
+    ## Viewport changing methods ##
     
+    def pan(self, dx, dy):
+        scale = self.get_scale()
+        new_x = self._centre[0] - dx
+        new_y = self._centre[1] - dy
+        
+        self._centre = (new_x, new_y)
+        
+        self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
+        self.clamp()   
+
+
     def zoom_to_point(self, mouse_x, mouse_y, delta):
         
         old_zoom = self._zoom_level
@@ -133,20 +200,17 @@ class Viewport(QObject):
         
         self.tiles_in_viewport.emit( (self._zoom_level, self.get_tiles_visible()) )
     
-    def get_visible_world(self):
-        """Returns the visible section of the map in world coords, as the midpoints of each side of a rectangle"""
+    
+    
+    ## Methods for map tiles ##
+    
+    def get_visible_world(self) -> tuple[float, float, float, float]:
+        """Returns the visible section of the map in world coords, as the 2 opposite corners of the viewport rectangle"""
+        top_left = self.screen_to_world_coords(0, 0)
+        bottom_right = self.screen_to_world_coords(*self._screen_dimensions)
         
-        scale = self.get_scale()
+        return (*top_left, *bottom_right)
         
-        width_offset = self._screen_dimensions[0] / 2
-        height_offset = self._screen_dimensions[1] / 2
-        
-        return (
-            self._centre[0] - width_offset,
-            self._centre[1] - height_offset,
-            self._centre[0] + width_offset,
-            self._centre[1] + height_offset
-        )
         
     def get_tiles_visible(self, padding = 0):
         """

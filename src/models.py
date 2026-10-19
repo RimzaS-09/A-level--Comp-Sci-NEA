@@ -2,10 +2,12 @@ from __future__ import annotations
 from enum import Enum
 import gzip
 import math
+from dataclasses import dataclass
 
 
 from PySide6.QtGui import QImage
 from utils.vector_tile_parsing import vector_tile_pb2
+from utils.general_purpose_datatypes.stack import DynamicStack
 
 # Temp fix for circular import
 import database_handling
@@ -253,12 +255,12 @@ class Graph:
     # TODO: I had to circumnavigate the sql_queries circlular import here. replace once a proper fix is made.
     def __init__(self, database: database_handling.sql_queries.GraphDatabase) -> None:
         self._database = database
-        self.construct_node_and_name_hashtable()
-        self.construct_road_hashtable()
-        self.construct_adjacency_list()
+        self._construct_node_and_name_hashtable()
+        self._construct_road_hashtable()
+        self._construct_adjacency_list()
 
     # TODO: replace with my own hashtable
-    def construct_node_and_name_hashtable(self):
+    def _construct_node_and_name_hashtable(self):
         self._node_table: dict[int, Node] = dict()
         self._name_table: dict[str, list[Node]] = dict()
         
@@ -282,7 +284,7 @@ class Graph:
                 else:
                     self._name_table[name].append(node)
     
-    def construct_road_hashtable(self):
+    def _construct_road_hashtable(self):
         self._road_table: dict[int, tuple] = dict()
         
         for road in self._database.iter_load_row("roads"):
@@ -295,7 +297,7 @@ class Graph:
     
     # This is a two-way adjacency list
     # Bit inefficient, TODO: find optimisations
-    def construct_adjacency_list(self):
+    def _construct_adjacency_list(self):
         for row in self._database.iter_load_row("edges"):
             id = row[0]
             from_id = row[1]
@@ -311,19 +313,14 @@ class Graph:
             self._node_table[to_id].append_edge(edge2)
             
     
+    
+    ## Getters and Setters ##
+    
     def get_node(self, id: int) -> Node|None:
         return self._node_table.get(id, None)
     
-    def search_name(self, name: str):
-        name = name.lower()    
-        return self._name_table.get(name, None)
-    
-    # heuristics-based algorithms dont work with haversine (circular) lengths, so calc world_coord distance here
-    # TODO: implement
-    def calc_straight_line_dist(self, node1, node2):
-        pass
-    
     def get_all_poi_names(self) -> list[str]:
+        """To be used in the searchbar or autocomplete."""
         node_name_list = []
         
         # The reason why I iterate over each value in the name_table instead of key is casing.
@@ -334,9 +331,39 @@ class Graph:
             
         return node_name_list
     
+    def get_road(self, road_id: int) -> tuple[str, str, str]|None:
+        return self._road_table.get(road_id, None)
     
-            
-            
+    def search_name(self, name: str):
+        name = name.lower()    
+        return self._name_table.get(name, None)
+
+    
+    # heuristics-based algorithms dont work with haversine (circular) lengths, so calc world_coord distance here
+    # TODO: implement
+    def calc_straight_line_dist(self, node1, node2):
+        pass
+
+
+
+
+@dataclass
+class Route:
+    """
+    Representative class of a single two-stop route done by a pathfinder.
+    Note that it would be parsed out of a 'DynamicStack[Edge]`,which is what the actual algorithms return.
+    """
+    start_stop: Node
+    end_stop: Node
+    coord_points: list[tuple[float, float]]    # In world coords at zoom 10, for the map overlay rendering
+    road_sections: list[tuple[str, str, float]]           # (road name, road number, length)
+    total_length: float                        # Definitely self explanatory
+
+@dataclass
+class MultiRoute:
+    """This is for TSP. When implemented, it will comprise of multiple individual `Route` objects, stitched together.,"""
+    # TODO: add stuff here
+    pass
 
 # TODO
 class TSP_Algorithm():
@@ -348,16 +375,16 @@ class PathfindingAlgorithm():
     def __init__(self, graph: Graph) -> None:
         self._graph = graph
     
-    def find_path(self, point_a: int, point_b: int) -> list[Edge]:
+    def find_path(self, start_id: int, target_id: int) -> DynamicStack|None:
         """
         Uses the relevant pathfinding algorithm generate a sequence of nodes and edges.
         
         Step 1 of 2 of **routefinding**
         """
         
-        pass
+        raise NotImplementedError
     
-    def _trace_path(self, came_from: dict, target_id: int) -> list[Edge]:
+    def _trace_path(self, came_from: dict, target_id: int) -> DynamicStack:
         """
         `find_path` doesn't actually generate a list of edges by itself. It only generates a
         **hashmap** of nodes, with each node_id keying to the relevant **edge** it was visited from.
@@ -372,7 +399,7 @@ class PathfindingAlgorithm():
         
         """
         
-        pass
+        raise NotImplementedError
     
     # TODO
     def benchmark(self):

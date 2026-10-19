@@ -3,12 +3,13 @@ import math
 # TODO
 from models import Graph, PathfindingAlgorithm, Node, Edge
 from utils.general_purpose_datatypes.queue import DynamicPriorityQueue, QueueValue
+from utils.general_purpose_datatypes.stack import DynamicStack
 
 class Djikstra(PathfindingAlgorithm):
     def __init__(self, graph: Graph) -> None:
         super().__init__(graph)
     
-    def find_path(self, start_id: int, target_id: int) -> list[Edge]|None:
+    def find_path(self, start_id: int, target_id: int) -> DynamicStack|None:
         """
         Traditional Dijkstra's algorithm wouldn't be compatible with our current node/edge adjacency list setup, since the time it takes to load them all into an unvisited list would
         be astronomical. to avoid this, basically only store nodes that are proven to touch one of the visited nodes.
@@ -63,15 +64,15 @@ class Djikstra(PathfindingAlgorithm):
         return None    
      
             
-            
-    # TODO: should return Stack[Edge] instead.
-    def _trace_path(self, came_from: dict, target_id: int) -> list[Edge]:
+
+    def _trace_path(self, came_from: dict, target_id: int) -> DynamicStack:
         """
-        returns the final path back. Currently in its reverse order,
-        but replacing the path variable with a stack in the future should do the trick thanks to LIFO.
+        Returns a Stack of Edges, with the starting edge at the top of the stack,
+        and the final edge at the bottom. Essentially just reverses the final path
+        back in order, thanks to the LIFO of stack.
         """
 
-        path = []
+        path = DynamicStack()
         
         cur_id = target_id
         while True:
@@ -80,7 +81,7 @@ class Djikstra(PathfindingAlgorithm):
             if not edge:
                 return path
             
-            path.append(edge)
+            path.push(edge)
             cur_id = edge.get_connecting_nodes()[0]
             
             

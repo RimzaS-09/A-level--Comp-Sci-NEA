@@ -10,6 +10,7 @@ from PySide6.QtGui import QPainter, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QWidget
 
 from map.renderer import MapRenderer
+from map.overlay import OverlayRenderer
 from map.viewport import Viewport
 
 from PySide6.QtCore import Slot, Signal
@@ -22,15 +23,43 @@ class MapWidget(QWidget):
         self.viewport = Viewport( (map_centre[0], map_centre[1]), map_centre[2])
         self.viewport.set_zoom_limits(0, 14)
         self.renderer = MapRenderer()
-        
-        self.viewport_changed = Signal(Viewport)
+        self.overlay = OverlayRenderer()
 
-    
+        # Used when drawing a route. Uses the default graph-coordinates in the graph database
+        self._route_points = []
+
+
+    # Redrawing the map tiles and map route.
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  
         painter = QPainter(self)
         self.renderer.render_map(self.tiles, self.viewport, painter)
+        
+        self.overlay.render_overlay(self._route_points, self.viewport, painter)
+        
         return super().paintEvent(event)
     
+    ## Route viewing ##
+    
+    def new_route(self, route_coords):
+        """
+        Displays a new route onto map. `route_coords` is a list of each structural node in the route.
+        
+        Roads are naturally derived from them (assuming they're all in a straight line from node to node.)
+        """
+        
+        self._route_points = route_coords
+        self.update()
+        
+    def clear_route(self):
+        """
+        Clears a route.
+        """
+        self._route_points = []
+        self.update()
+    
+    
+    
+    ## Events ##
     
     def mousePressEvent(self, event: QMouseEvent) -> None:
         self.beginning_position = event.position()
@@ -57,12 +86,15 @@ class MapWidget(QWidget):
         self.viewport.zoom_to_point(mouse.x(), mouse.y(), scroll_delta)
         self.update()
         
-        print("zoom level at: ", self.viewport.get_zoom_level())
         return super().wheelEvent(event)
     
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         new_screen_size = event.size()
         self.viewport.set_screen_size(new_screen_size.toTuple())
+        
+        # NOTE: this is to reload everything, but its extremely slow right now, thanks to us having no cache rn.
+        self.viewport.pan(0, 0) 
+        
         self.update()
         return super().resizeEvent(event)
 
