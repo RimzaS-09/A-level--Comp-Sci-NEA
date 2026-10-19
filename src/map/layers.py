@@ -70,7 +70,7 @@ class Layers:
     }
     
     _layer_min_zoom = {
-        "building" : 12,
+        "buildings" : 13,
     }
     
     def get_min_zooms(self):

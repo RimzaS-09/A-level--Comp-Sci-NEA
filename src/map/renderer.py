@@ -1,5 +1,5 @@
 """
-The file is designed to have the purpose of decoding+rendering raw tile data
+The file is designed to have the purpose of decoding and rendering raw tile data.
 
 split up into two parts:
 
@@ -9,6 +9,7 @@ Decodes 1 raw_tile data into a QImage
 # MapRender:
 Stitches multiple QImage rendered tiles together
 
+
 In the previous major version, This just constructed some geometry primaries (either point, linestring, or polygon)
 as modeled classes, which was THEN rendered, but this was slow af.
 
@@ -16,7 +17,6 @@ Now, It directly rasterizes the vector_tiles into QImages.
 
 NOTE: I might need to split this file up later. Its a bit long
 """
-
 
 
 import math
@@ -364,7 +364,9 @@ class MapRenderer:
             transform = QTransform()
 
             # Matrix transformations are applied separately then combined
-            # Also means I can't change the order
+            # Also means I can't change the order of function calls
+            # NOTE: Matrix transforms should be ok, but I could transform the coords natively using my own functions.
+            
             transform.translate(*screen_centre)
             transform.translate(-viewport_centre[0], -viewport_centre[1])
             painter.setTransform(transform)
@@ -380,4 +382,5 @@ class MapRenderer:
             painter.drawImage(x, y, tile.get_image())
     
     def render_tile(self, tile: RenderedTile, viewport: Viewport, painter: QPainter):
+        """Just a stub for now.I offloaded most of the work to the `TileRenderer` class"""
         pass
